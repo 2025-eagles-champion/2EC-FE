@@ -243,7 +243,7 @@ function calculatePageRank(graph, dampingFactor = 0.85, iterations = 100) {
 }
 
 // 가중치 기반 Top-K 노드 선택 함수
-function selectTopKNodes(nodes, batchWeight, txCountWeight, txAmountWeight, k = 20) {
+function selectTopKNodes(nodes, batchWeight, txCountWeight, txAmountWeight, k = 10) {
     if (!nodes || nodes.length === 0) {
         return [];
     }

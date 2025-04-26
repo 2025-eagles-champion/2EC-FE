@@ -33,6 +33,7 @@
     font-weight: bold;
     color: #495057;
     margin-right: 12px;
+    flex-shrink: 0;
 }
 
 .node-color {
@@ -40,11 +41,13 @@
     height: 12px;
     border-radius: 50%;
     margin-right: 12px;
+    flex-shrink: 0;
 }
 
 .node-info {
     flex: 1;
     min-width: 0;
+    margin-right: 10px;
 }
 
 .node-address {
@@ -74,7 +77,8 @@
     display: flex;
     flex-direction: column;
     align-items: flex-end;
-    min-width: 80px;
+    min-width: 90px;
+    flex-shrink: 0;
 }
 
 .stat {
@@ -83,12 +87,21 @@
     margin-bottom: 2px;
     display: flex;
     justify-content: space-between;
+    align-items: center;
     width: 100%;
+}
+
+.stat-label {
+    margin-right: 8px;
+    min-width: 35px;
+    text-align: right;
 }
 
 .stat-value {
     font-weight: 500;
     color: #212529;
+    min-width: 25px;
+    text-align: right;
 }
 
 .no-nodes {

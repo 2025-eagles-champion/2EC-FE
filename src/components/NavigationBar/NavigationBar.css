@@ -9,15 +9,22 @@
 }
 
 .sliders-section {
-    flex: 1;
+    height: 40%;
+    min-height: 200px;
     padding: 20px;
     border-bottom: 1px solid #dee2e6;
     overflow-y: auto;
 }
 
 .nodes-section {
-    flex: 1;
+    height: 70%;
     padding: 20px;
+    overflow-y: auto;
+    flex-grow: 1;
+}
+
+.node-list-container {
+    height: calc(100% - 40px);
     overflow-y: auto;
 }
 
@@ -27,7 +34,6 @@
 
 .slider-container label {
     display: block;
-    margin-bottom: 8px;
     font-weight: 500;
     color: #495057;
 }

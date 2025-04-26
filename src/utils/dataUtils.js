@@ -81,9 +81,21 @@ export const getAddressName = (address) => {
     if (!address || typeof address !== 'string') return 'Unknown';
 
     try {
-        // 체인 접두사와 일부 주소를 포함해 표시
-        const shortenedAddr = shortenAddress(address, 8, 6);
-        return shortenedAddr;
+        // 체인 접두사 추출 (첫 번째 '1' 앞까지)
+        let chainPrefix = 'unknown';
+        let uuid = '';
+
+        if (address.includes('1')) {
+            const parts = address.split('1');
+            chainPrefix = parts[0];
+            uuid = parts.length > 1 ? parts[1].substring(0, 4) : '';
+        } else {
+            // '1'이 없는 경우 앞 부분 사용
+            chainPrefix = address.substring(0, 6);
+        }
+
+        // 체인명 + uuid 앞 네글자 형태로 구성
+        return `${chainPrefix}${uuid ? `.${uuid}` : ''}`;
     } catch (e) {
         console.warn('Error extracting address name:', e);
         return 'Unknown';
@@ -91,8 +103,11 @@ export const getAddressName = (address) => {
 };
 
 // Top-K 노드 선택 함수
-export const getTopKNodes = (addressData, batchWeight, txCountWeight, txAmountWeight, k = 20) => {
-    if (!addressData || addressData.length === 0) return [];
+export const getTopKNodes = (addressData, batchWeight, txCountWeight, txAmountWeight, k = 10) => {
+    if (!addressData || addressData.length === 0) {
+        console.log("No address data available for Top-K calculation");
+        return [];
+    }
 
     // 가중치 정규화
     const totalWeight = batchWeight + txCountWeight + txAmountWeight;
@@ -101,34 +116,57 @@ export const getTopKNodes = (addressData, batchWeight, txCountWeight, txAmountWe
     const normalizedTxAmountWeight = txAmountWeight / totalWeight;
 
     // 최대값 찾기 (정규화 위함)
-    const maxPageRank = Math.max(...addressData.map(a => a.pagerank || 0));
-    const maxTxCount = Math.max(...addressData.map(a => (a.sent_tx_count || 0) + (a.recv_tx_count || 0)));
-    const maxTxAmount = Math.max(...addressData.map(a => (a.sent_tx_amount || 0) + (a.recv_tx_amount || 0)));
+    let maxPageRank = 0;
+    let maxTxCount = 0;
+    let maxTxAmount = 0;
 
-    // 각 주소별 점수 계산
-    const scoredAddresses = addressData.map(address => {
-        const pagerankScore = maxPageRank > 0 ? (address.pagerank || 0) / maxPageRank : 0;
-        const txCountScore = maxTxCount > 0 ?
-            ((address.sent_tx_count || 0) + (address.recv_tx_count || 0)) / maxTxCount : 0;
-        const txAmountScore = maxTxAmount > 0 ?
-            ((address.sent_tx_amount || 0) + (address.recv_tx_amount || 0)) / maxTxAmount : 0;
-
-        const totalScore =
-            (pagerankScore * normalizedBatchWeight) +
-            (txCountScore * normalizedTxCountWeight) +
-            (txAmountScore * normalizedTxAmountWeight);
-
-        return {
-            ...address,
-            score: totalScore,
-            name: getAddressName(address.address)
-        };
+    addressData.forEach(a => {
+        if (a) {
+            maxPageRank = Math.max(maxPageRank, a.pagerank || 0);
+            maxTxCount = Math.max(maxTxCount, (a.sent_tx_count || 0) + (a.recv_tx_count || 0));
+            maxTxAmount = Math.max(maxTxAmount, (a.sent_tx_amount || 0) + (a.recv_tx_amount || 0));
+        }
     });
 
+    // 모든 0이면 방어 코드
+    maxPageRank = maxPageRank || 1;
+    maxTxCount = maxTxCount || 1;
+    maxTxAmount = maxTxAmount || 1;
+
+    console.log("Calculating Top-K with weights:",
+        { batch: normalizedBatchWeight, count: normalizedTxCountWeight, amount: normalizedTxAmountWeight });
+
+    // 각 주소별 점수 계산
+    const scoredAddresses = addressData
+        .filter(addr => addr && (addr.address || addr.id)) // 유효한 주소만 필터링
+        .map(address => {
+            const nodeId = address.address || address.id;
+            const pagerankScore = (address.pagerank || 0.1) / maxPageRank;
+            const txCountScore =
+                ((address.sent_tx_count || 0) + (address.recv_tx_count || 0)) / maxTxCount;
+            const txAmountScore =
+                ((address.sent_tx_amount || 0) + (address.recv_tx_amount || 0)) / maxTxAmount;
+
+            const totalScore =
+                (pagerankScore * normalizedBatchWeight) +
+                (txCountScore * normalizedTxCountWeight) +
+                (txAmountScore * normalizedTxAmountWeight);
+
+            return {
+                ...address,
+                id: nodeId, // id 필드 추가
+                score: totalScore,
+                name: getAddressName(nodeId)
+            };
+        });
+
     // 내림차순 정렬 후 Top-K 반환
-    return scoredAddresses
+    const result = scoredAddresses
         .sort((a, b) => b.score - a.score)
         .slice(0, k);
+
+    console.log(`Finished Top-K calculation: found ${result.length} nodes`);
+    return result;
 };
 
 // PageRank 알고리즘 계산 함수

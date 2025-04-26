@@ -1,7 +1,7 @@
 // src/components/NavigationBar/NodeList.jsx
 import React, { useEffect } from 'react';
 import './NodeList.css';
-import { shortenAddress } from '../../utils/dataUtils';
+import { shortenAddress, getAddressName } from '../../utils/dataUtils';
 import { getChainColor, getTierColor } from '../../utils/colorUtils';
 import { tierConfig } from '../../constants/tierConfig';
 
@@ -26,46 +26,41 @@ const NodeList = ({ nodes, onNodeSelect }) => {
         console.log("NodeList received nodes:", nodes);
     }, [nodes]);
 
-    // 노드가 없거나 빈 배열인 경우 확인
-    if (!nodes) {
-        console.log("Nodes is undefined or null");
-        return <div className="no-nodes">노드가 없습니다</div>;
-    }
+    // 렌더링 로직 분리 - 안전하게 처리
+    const renderNodes = () => {
+        if (!nodes || !Array.isArray(nodes) || nodes.length === 0) {
+            return <div className="no-nodes">노드가 없습니다</div>;
+        }
 
-    if (!Array.isArray(nodes)) {
-        console.log("Nodes is not an array:", nodes);
-        return <div className="no-nodes">노드 타입 오류</div>;
-    }
+        console.log("Rendering NodeList with", nodes.length, "nodes");
 
-    if (nodes.length === 0) {
-        console.log("Nodes array is empty");
-        return <div className="no-nodes">노드가 없습니다</div>;
-    }
+        const validNodes = nodes.filter(node => node && (node.address || node.id));
 
-    console.log("Rendering NodeList with", nodes.length, "nodes");
+        if (validNodes.length === 0) {
+            return <div className="no-nodes">유효한 노드가 없습니다</div>;
+        }
 
-    return (
-        <div className="node-list">
+        return (
             <ul>
-                {nodes.map((node, index) => {
-                    if (!node) {
-                        console.warn("Null or undefined node at index", index);
+                {validNodes.map((node, index) => {
+                    // 주소 확인 (address 또는 id 필드 사용)
+                    const nodeId = node.address || node.id;
+                    if (!nodeId) {
+                        console.warn("Node has no identifier:", node);
                         return null;
                     }
 
-                    if (!node.address) {
-                        console.warn("Node has no address:", node);
-                        return null;
-                    }
+                    const chainName = node.chain || extractChainName(nodeId);
 
-                    const chainName = node.chain || extractChainName(node.address);
+                    // 노드 이름 계산 - 체인명 + UUID 앞 4자리 형식
+                    const displayName = node.name || getAddressName(nodeId);
 
                     return (
-                        <li key={node.address} onClick={() => onNodeSelect(node)}>
+                        <li key={nodeId} onClick={() => onNodeSelect(node)}>
                             <div className="node-rank">{index + 1}</div>
                             <div className="node-color" style={{ backgroundColor: getChainColor(chainName) }}></div>
                             <div className="node-info">
-                                <div className="node-address">{shortenAddress(node.address)}</div>
+                                <div className="node-address">{displayName}</div>
                                 <div className="node-details">
                                     <span className="node-chain">{chainName}</span>
                                     <span className="node-tier" style={{ color: getTierColor(node.tier) }}>
@@ -87,6 +82,13 @@ const NodeList = ({ nodes, onNodeSelect }) => {
                     );
                 })}
             </ul>
+        );
+    };
+
+    // 메인 렌더링
+    return (
+        <div className="node-list" data-testid="node-list">
+            {renderNodes()}
         </div>
     );
 };

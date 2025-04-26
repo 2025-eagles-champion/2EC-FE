@@ -30,42 +30,30 @@ const NavigationBar = ({ onNodeSelect }) => {
         loadAddressData();
     }, []);
 
-    // Top-K 노드 계산 함수 (memoized)
-    const calculateTopNodes = useCallback(() => {
-        if (!addressData || addressData.length === 0) {
-            console.log("No address data to calculate top nodes");
-            return [];
-        }
-
-        try {
-            const nodes = getTopKNodes(addressData, batchWeight, txCountWeight, txAmountWeight, 20);
-            console.log("Calculated top nodes:", nodes.length, "items");
-            return nodes;
-        } catch (error) {
-            console.error("Error calculating top nodes:", error);
-            return [];
-        }
-    }, [addressData, batchWeight, txCountWeight, txAmountWeight]);
-
     // 슬라이더 값이 변경될 때마다 Top-K 노드 조회
     useEffect(() => {
-        const getTopNodes = async () => {
-            setLoading(true);
+        if (!addressData || addressData.length === 0) {
+            console.log("No address data available yet");
+            return;
+        }
+
+        console.log("Calculating top nodes with weights:", batchWeight, txCountWeight, txAmountWeight);
+        setLoading(true);
+
+        // setTimeout을 사용하여 UI 렌더링 차단 방지
+        setTimeout(() => {
             try {
-                const nodes = calculateTopNodes();
+                const nodes = getTopKNodes(addressData, batchWeight, txCountWeight, txAmountWeight, 10);
+                console.log("Top nodes calculated:", nodes);
                 setTopNodes(nodes);
+            } catch (error) {
+                console.error("Error calculating top nodes:", error);
             } finally {
                 setLoading(false);
             }
-        };
+        }, 0);
 
-        // 디바운스 처리
-        const timeoutId = setTimeout(() => {
-            getTopNodes();
-        }, 300);
-
-        return () => clearTimeout(timeoutId);
-    }, [calculateTopNodes]);
+    }, [batchWeight, txCountWeight, txAmountWeight, addressData]);
 
     // 슬라이더 값 변경 핸들러
     const handleBatchWeightChange = (value) => {
@@ -130,11 +118,17 @@ const NavigationBar = ({ onNodeSelect }) => {
             </div>
 
             <div className="nodes-section">
-                <h3>Top 노드 목록 ({topNodes?.length || 0})</h3>
+                <h3>Top 노드 목록 ({topNodes?.length || 0}개)</h3>
                 {loading ? (
-                    <div className="loading">노드 목록 로딩 중...</div>
+                    // <div className="loading">노드 목록 로딩 중...</div>
+                    <></>
                 ) : (
-                    <NodeList key="nodelist" nodes={topNodes} onNodeSelect={handleNodeSelect} />
+                    <div className="node-list-container">
+                        <NodeList
+                            nodes={topNodes}
+                            onNodeSelect={handleNodeSelect}
+                        />
+                    </div>
                 )}
             </div>
         </div>
