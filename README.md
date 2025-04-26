@@ -1,70 +1,135 @@
-# Getting Started with Create React App
+# 블록체인 데이터 시각화 프로젝트
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+이 프로젝트는 블록체인 트랜잭션 데이터를 시각적으로 분석할 수 있는 웹 애플리케이션입니다. 네트워크 그래프와 샌키 다이어그램을 통해 블록체인 거래 패턴과 흐름을 분석할 수 있습니다.
 
-## Available Scripts
+## 주요 기능
 
-In the project directory, you can run:
+- **네트워크 그래프 시각화**: 블록체인 주소 간의 거래를 노드-링크 다이어그램으로 시각화
+- **샌키 차트**: 특정 주소의 거래 흐름을 샌키 다이어그램으로 시각화
+- **필터링 기능**: 배치(PageRank), 거래 횟수, 거래량의 가중치를 조절하여 중요 노드 필터링
+- **노드 상세 정보**: 특정 노드 선택 시 해당 주소의 상세 거래 정보 확인
+- **티어 시스템**: PageRank 기반의 신뢰도에 따라 브론즈부터 다이아몬드까지 5단계 티어로 구분
 
-### `npm start`
+## 기술 스택
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+- React.js
+- D3.js (네트워크 그래프)
+- D3-Sankey (샌키 다이어그램)
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## 프로젝트 구조
 
-### `npm test`
+```
+blockchain-visualization/
+├── public/
+│   ├── index.html
+│   └── favicon.ico
+├── src/
+│   ├── components/
+│   │   ├── NetworkGraph/
+│   │   │   ├── NetworkGraph.jsx
+│   │   │   ├── NetworkGraph.css
+│   │   │   └── NetworkGraphUtils.js
+│   │   ├── SankeyChart/
+│   │   │   ├── SankeyChart.jsx
+│   │   │   ├── SankeyChart.css
+│   │   │   └── SankeyChartUtils.js
+│   │   ├── NavigationBar/
+│   │   │   ├── NavigationBar.jsx
+│   │   │   ├── NavigationBar.css
+│   │   │   ├── Slider.jsx
+│   │   │   ├── Slider.css
+│   │   │   ├── NodeList.jsx
+│   │   │   └── NodeList.css
+│   │   └── BottomSheet/
+│   │       ├── BottomSheet.jsx
+│   │       └── BottomSheet.css
+│   ├── services/
+│   │   └── api.js
+│   ├── utils/
+│   │   ├── dataUtils.js
+│   │   └── colorUtils.js
+│   ├── constants/
+│   │   ├── chainColors.js
+│   │   └── tierConfig.js
+│   ├── data/
+│   │   ├── dummyTransactions.js
+│   │   └── dummyAddressData.js
+│   ├── App.jsx
+│   ├── App.css
+│   ├── index.js
+│   └── index.css
+├── package.json
+└── README.md
+```
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+## 설치 및 실행
 
-### `npm run build`
+### 사전 요구사항
+- Node.js 14 이상
+- npm 또는 yarn
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+### 설치 방법
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+1. 프로젝트 클론
+```bash
+git clone https://github.com/your-username/blockchain-visualization.git
+cd blockchain-visualization
+```
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+2. 의존성 설치
+```bash
+npm install
+# 또는
+yarn install
+```
 
-### `npm run eject`
+3. 개발 서버 실행
+```bash
+npm start
+# 또는
+yarn start
+```
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+4. 브라우저에서 확인
+```
+http://localhost:3000
+```
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+## 데이터 연동 방법
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+현재 프로젝트는 더미 데이터를 사용하고 있습니다. 실제 API 연동을 위해서는 다음과 같이 진행하세요:
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+1. `src/services/api.js` 파일에서 각 함수의 구현을 실제 API 호출로 대체합니다.
+2. 백엔드 API가 반환하는 데이터 구조에 맞게 `src/utils/dataUtils.js`의 변환 함수를 필요에 따라 수정합니다.
 
-## Learn More
+## 주요 컴포넌트 설명
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+### NetworkGraph
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+블록체인 주소 간의 거래 관계를 노드-링크 다이어그램으로 시각화합니다. D3.js의 force-directed graph를 사용하여 구현되어 있습니다.
 
-### Code Splitting
+### SankeyChart
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+특정 주소의 거래 흐름을 샌키 다이어그램으로 시각화합니다. 주소 간 자금 흐름의 방향과 규모를 확인할 수 있습니다.
 
-### Analyzing the Bundle Size
+### NavigationBar
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+3개의 슬라이더를 통해 배치(PageRank), 거래 횟수, 거래량의 가중치를 조절하여 주요 노드를 필터링할 수 있습니다. 필터링 결과는 하단 노드 목록에 표시됩니다.
 
-### Making a Progressive Web App
+### BottomSheet
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+특정 노드 선택 시 나타나는 하단 시트로, 노드의 상세 정보와 샌키 차트, 최근 거래 내역을 확인할 수 있습니다.
 
-### Advanced Configuration
+## 티어 시스템
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+PageRank 알고리즘 기반의 신뢰도에 따라 5단계의 티어로 구분됩니다:
 
-### Deployment
+- 브론즈 (0.0 ~ 0.3)
+- 실버 (0.3 ~ 0.5)
+- 골드 (0.5 ~ 0.7)
+- 플래티넘 (0.7 ~ 0.8)
+- 다이아몬드 (0.8 ~ 1.0)
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+## 라이선스
 
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+MIT 라이선스

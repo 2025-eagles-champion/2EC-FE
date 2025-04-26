@@ -1,0 +1,101 @@
+// src/App.jsx
+import React, { useState, useEffect } from 'react';
+import './App.css';
+import NetworkGraph from './components/NetworkGraph/NetworkGraph';
+import NavigationBar from './components/NavigationBar/NavigationBar';
+import BottomSheet from './components/BottomSheet/BottomSheet';
+import { fetchTransactions, fetchAddressData } from './services/api';
+
+function App() {
+    const [transactions, setTransactions] = useState([]);
+    const [addressData, setAddressData] = useState([]);
+    const [selectedNode, setSelectedNode] = useState(null);
+    const [bottomSheetOpen, setBottomSheetOpen] = useState(false);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+
+    // 데이터 로드
+    useEffect(() => {
+        const loadData = async () => {
+            setLoading(true);
+            try {
+                const [txData, addrData] = await Promise.all([
+                    fetchTransactions(),
+                    fetchAddressData()
+                ]);
+
+                setTransactions(txData);
+                setAddressData(addrData);
+                setError(null);
+            } catch (err) {
+                console.error('Error loading data:', err);
+                setError('데이터를 불러오는 중 오류가 발생했습니다.');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        loadData();
+    }, []);
+
+    // 노드 선택 처리
+    const handleNodeSelect = (node) => {
+        setSelectedNode(node);
+        setBottomSheetOpen(true);
+    };
+
+    // 바텀 시트 닫기
+    const handleBottomSheetClose = () => {
+        setBottomSheetOpen(false);
+    };
+
+    if (loading) {
+        return (
+            <div className="loading-container">
+                <div className="loading-spinner"></div>
+                <p>데이터 로딩 중...</p>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="error-container">
+                <h2>오류 발생</h2>
+                <p>{error}</p>
+                <button onClick={() => window.location.reload()}>새로고침</button>
+            </div>
+        );
+    }
+
+    return (
+        <div className="app">
+            <div className="main-content">
+                <div className="graph-container">
+                    <NetworkGraph
+                        transactions={transactions}
+                        addressData={addressData}
+                        onNodeClick={handleNodeSelect}
+                        selectedNode={selectedNode}
+                    />
+                </div>
+                <div className="navigation-container">
+                    <NavigationBar onNodeSelect={handleNodeSelect} />
+                </div>
+            </div>
+
+            <BottomSheet
+                isOpen={bottomSheetOpen}
+                onClose={handleBottomSheetClose}
+                selectedNode={selectedNode}
+                allTransactions={transactions}
+                addressData={addressData}
+            />
+        </div>
+    );
+}
+
+export default App;
+
+// src/App.css
+

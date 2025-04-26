@@ -1,0 +1,41 @@
+.sankey-chart-container {
+    width: 100%;
+    height: 300px;
+    padding: 10px;
+    box-sizing: border-box;
+    background-color: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.sankey-chart {
+    width: 100%;
+    height: 100%;
+}
+
+.links path {
+    transition: opacity 0.3s;
+}
+
+.links path:hover {
+    opacity: 0.9;
+}
+
+.nodes rect {
+    cursor: pointer;
+    transition: opacity 0.3s;
+}
+
+.nodes rect:hover {
+    opacity: 0.8;
+}
+
+.node-labels text {
+    pointer-events: none;
+    text-shadow: 0 1px 0 #fff, 1px 0 0 #fff, 0 -1px 0 #fff, -1px 0 0 #fff;
+}
+
+.tier-info {
+    font-weight: bold;
+    font-size: 14px;
+}
