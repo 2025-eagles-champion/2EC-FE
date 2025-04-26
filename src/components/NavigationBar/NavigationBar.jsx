@@ -84,41 +84,47 @@ const NavigationBar = ({ onNodeSelect }) => {
             <div className="sliders-section">
                 <h3>필터링 옵션</h3>
                 <div className="slider-container">
-                    <label>배치 가중치</label>
+                    <div className="slider-flex">
+                        <label>배치/퀀트 가중치</label>
+                        <span className="slider-value">{batchWeight}%</span>
+                    </div>
                     <Slider
                         value={batchWeight}
                         onChange={handleBatchWeightChange}
                         min={0}
                         max={100}
                     />
-                    <span className="slider-value">{batchWeight}%</span>
                 </div>
 
                 <div className="slider-container">
-                    <label>거래 횟수 가중치</label>
+                    <div className="slider-flex">
+                        <label>거래 횟수 가중치</label>
+                        <span className="slider-value">{txCountWeight}%</span>
+                    </div>
                     <Slider
                         value={txCountWeight}
                         onChange={handleTxCountWeightChange}
                         min={0}
                         max={100}
                     />
-                    <span className="slider-value">{txCountWeight}%</span>
                 </div>
 
                 <div className="slider-container">
-                    <label>거래량 가중치</label>
+                    <div className="slider-flex">
+                        <label>거래량 가중치</label>
+                        <span className="slider-value">{txAmountWeight}%</span>
+                    </div>
                     <Slider
                         value={txAmountWeight}
                         onChange={handleTxAmountWeightChange}
                         min={0}
                         max={100}
                     />
-                    <span className="slider-value">{txAmountWeight}%</span>
                 </div>
             </div>
 
             <div className="nodes-section">
-                <h3>Top 노드 목록 ({topNodes?.length || 0}개)</h3>
+                <h3>Top10 노드 목록 ({topNodes?.length || 0}개)</h3>
                 {loading ? (
                     // <div className="loading">노드 목록 로딩 중...</div>
                     <></>

@@ -17,9 +17,9 @@
 }
 
 .nodes-section {
-    height: 70%;
+    height: 60%;
     padding: 20px;
-    overflow-y: auto;
+    overflow-y: hidden;
     flex-grow: 1;
 }
 
@@ -32,6 +32,12 @@
     margin-bottom: 20px;
 }
 
+.slider-flex {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
 .slider-container label {
     display: block;
     font-weight: 500;
@@ -40,6 +46,7 @@
 
 .slider-value {
     display: inline-block;
+    margin-top: 6px;
     margin-left: 10px;
     font-weight: bold;
     color: #212529;
