@@ -37,7 +37,7 @@
 }
 
 .bottom-sheet-header {
-    padding: 12px 16px;
+    padding: 12px 30px;
     display: flex;
     justify-content: center;
     position: relative;
@@ -53,8 +53,8 @@
 
 .close-button {
     position: absolute;
-    right: 16px;
-    top: 12px;
+    right: 20px;
+    top: 4px;
     background: none;
     border: none;
     font-size: 24px;
