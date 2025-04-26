@@ -117,7 +117,8 @@ const loadCSVFiles = () => {
     dataCache.loadingProgress = 0;
 
     // 개발 환경이나 데이터가 작은 경우는 더미 데이터 사용
-    const useDummyData = process.env.NODE_ENV === 'development' || process.env.REACT_APP_USE_DUMMY_DATA === 'true';
+    // const useDummyData = process.env.NODE_ENV === 'development' || process.env.REACT_APP_USE_DUMMY_DATA === 'true';
+    const useDummyData = true;
 
     if (useDummyData) {
         // 더미 데이터 사용 (개발 편의성)
