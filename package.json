@@ -2,6 +2,7 @@
   "name": "my",
   "version": "0.1.0",
   "private": true,
+  "main": "main.js",
   "dependencies": {
     "@testing-library/dom": "^10.4.0",
     "@testing-library/jest-dom": "^6.6.3",
@@ -9,6 +10,7 @@
     "@testing-library/user-event": "^13.5.0",
     "d3": "^7.8.5",
     "d3-sankey": "^0.12.3",
+    "electron": "^29.0.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-force-graph-2d": "^1.27.1",
@@ -18,7 +20,10 @@
   },
   "scripts": {
     "start": "react-scripts start",
+    "electron": "electron .",
+    "dev": "concurrently \"npm run start\" \"wait-on http://localhost:3000 && npm run electron\"",
     "build": "react-scripts build",
+    "electron-build": "npm run build && electron .",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },
@@ -41,8 +46,10 @@
     ]
   },
   "devDependencies": {
+    "concurrently": "^9.1.2",
     "eslint": "^8.57.1",
     "eslint-plugin-react": "^7.37.4",
-    "eslint-plugin-react-hooks": "^5.2.0"
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "wait-on": "^8.0.3"
   }
 }
