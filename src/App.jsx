@@ -40,6 +40,23 @@ function App() {
 
     // 노드 선택 처리
     const handleNodeSelect = (node) => {
+        // 노드 유효성 검사
+        if (!node) {
+            console.error('Invalid node selected:', node);
+            return;
+        }
+
+        // address 필드를 id로 변환 (Top-K 목록에서 선택된 경우)
+        if (node.address && !node.id) {
+            node.id = node.address;
+        }
+
+        // id나 address 중 하나는 필요함
+        if (!node.id && !node.address) {
+            console.error('Node has no identifier:', node);
+            return;
+        }
+
         setSelectedNode(node);
         setBottomSheetOpen(true);
     };
@@ -96,6 +113,3 @@ function App() {
 }
 
 export default App;
-
-// src/App.css
-

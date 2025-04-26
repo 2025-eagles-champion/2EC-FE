@@ -1,13 +1,13 @@
-:root {
-  --color-primary: #4dabf7;
-  --color-primary-dark: #339af0;
-  --color-primary-light: #74c0fc;
-  --color-text: #212529;
-  --color-text-light: #495057;
-  --color-text-lighter: #6c757d;
-  --color-background: #f8f9fa;
-  --color-border: #dee2e6;
-}
+ :root {
+   --color-primary: #4dabf7;
+   --color-primary-dark: #339af0;
+   --color-primary-light: #74c0fc;
+   --color-text: #212529;
+   --color-text-light: #495057;
+   --color-text-lighter: #6c757d;
+   --color-background: #f8f9fa;
+   --color-border: #dee2e6;
+ }
 
 html, body {
   margin: 0;

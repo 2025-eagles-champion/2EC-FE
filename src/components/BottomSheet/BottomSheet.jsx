@@ -50,7 +50,7 @@ const BottomSheet = ({ isOpen, onClose, selectedNode, allTransactions, addressDa
 
     // 트랜잭션 목록 렌더링
     const renderTransactionsList = () => {
-        if (nodeTransactions.length === 0) {
+        if (!nodeTransactions || nodeTransactions.length === 0) {
             return <div className="no-transactions">거래 내역이 없습니다</div>;
         }
 
@@ -68,23 +68,27 @@ const BottomSheet = ({ isOpen, onClose, selectedNode, allTransactions, addressDa
                         </tr>
                     </thead>
                     <tbody>
-                        {nodeTransactions.slice(0, 5).map(tx => (
-                            <tr key={tx.txhash}>
-                                <td>{tx.type}</td>
-                                <td>
-                                    <span className="address-chip" style={{ backgroundColor: getChainColor(tx.fromChain) }}>
-                                        {shortenAddress(tx.fromAddress)}
-                                    </span>
-                                </td>
-                                <td>
-                                    <span className="address-chip" style={{ backgroundColor: getChainColor(tx.toChain) }}>
-                                        {shortenAddress(tx.toAddress)}
-                                    </span>
-                                </td>
-                                <td>{tx.amount} {tx.dpDenom}</td>
-                                <td>{new Date(tx.timestamp).toLocaleString()}</td>
-                            </tr>
-                        ))}
+                        {nodeTransactions.slice(0, 5).map(tx => {
+                            if (!tx || !tx.txhash) return null;
+
+                            return (
+                                <tr key={tx.txhash}>
+                                    <td>{tx.type || '전송'}</td>
+                                    <td>
+                                        <span className="address-chip" style={{ backgroundColor: getChainColor(tx.fromChain || 'unknown') }}>
+                                            {shortenAddress(tx.fromAddress || '-')}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span className="address-chip" style={{ backgroundColor: getChainColor(tx.toChain || 'unknown') }}>
+                                            {shortenAddress(tx.toAddress || '-')}
+                                        </span>
+                                    </td>
+                                    <td>{(tx.amount || 0).toFixed(4)} {tx.dpDenom || ''}</td>
+                                    <td>{tx.timestamp ? new Date(tx.timestamp).toLocaleString() : '-'}</td>
+                                </tr>
+                            );
+                        })}
                     </tbody>
                 </table>
             </div>
@@ -93,9 +97,21 @@ const BottomSheet = ({ isOpen, onClose, selectedNode, allTransactions, addressDa
 
     // 노드 상세 정보 렌더링
     const renderNodeDetailInfo = () => {
-        if (!nodeDetail) return null;
+        if (!nodeDetail || !selectedNode || !selectedNode.id) return null;
 
-        const chainName = selectedNode.id.split('1')[0];
+        // 주소로부터 체인 이름 추출 - 안전하게 처리
+        let chainName = 'unknown';
+        try {
+            if (selectedNode.chain) {
+                // 노드에 체인 정보가 있으면 직접 사용
+                chainName = selectedNode.chain;
+            } else if (typeof selectedNode.id === 'string' && selectedNode.id.includes('1')) {
+                // 주소 형식에서 체인 이름 추출 시도
+                chainName = selectedNode.id.split('1')[0];
+            }
+        } catch (e) {
+            console.warn('Error extracting chain name:', e);
+        }
 
         return (
             <div className="node-detail-info">
@@ -118,27 +134,27 @@ const BottomSheet = ({ isOpen, onClose, selectedNode, allTransactions, addressDa
                 <div className="stats-grid">
                     <div className="stat-card">
                         <div className="stat-title">총 전송량</div>
-                        <div className="stat-value">{nodeDetail.sent_tx_amount.toFixed(4)}</div>
+                        <div className="stat-value">{(nodeDetail.sent_tx_amount || 0).toFixed(4)}</div>
                     </div>
                     <div className="stat-card">
                         <div className="stat-title">총 수신량</div>
-                        <div className="stat-value">{nodeDetail.recv_tx_amount.toFixed(4)}</div>
+                        <div className="stat-value">{(nodeDetail.recv_tx_amount || 0).toFixed(4)}</div>
                     </div>
                     <div className="stat-card">
                         <div className="stat-title">전송 횟수</div>
-                        <div className="stat-value">{nodeDetail.sent_tx_count}</div>
+                        <div className="stat-value">{nodeDetail.sent_tx_count || 0}</div>
                     </div>
                     <div className="stat-card">
                         <div className="stat-title">수신 횟수</div>
-                        <div className="stat-value">{nodeDetail.recv_tx_count}</div>
+                        <div className="stat-value">{nodeDetail.recv_tx_count || 0}</div>
                     </div>
                     <div className="stat-card">
                         <div className="stat-title">활동 일수</div>
-                        <div className="stat-value">{nodeDetail.active_days_count}</div>
+                        <div className="stat-value">{nodeDetail.active_days_count || 0}</div>
                     </div>
                     <div className="stat-card">
                         <div className="stat-title">거래 상대방 수</div>
-                        <div className="stat-value">{nodeDetail.counterparty_count_sent + nodeDetail.counterparty_count_recv}</div>
+                        <div className="stat-value">{(nodeDetail.counterparty_count_sent || 0) + (nodeDetail.counterparty_count_recv || 0)}</div>
                     </div>
                 </div>
             </div>
