@@ -3,9 +3,9 @@
     height: 300px;
     padding: 10px;
     box-sizing: border-box;
-    background-color: #ffffff;
+    background-color: #222222;
     border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .sankey-chart {
@@ -32,10 +32,12 @@
 
 .node-labels text {
     pointer-events: none;
-    text-shadow: 0 1px 0 #fff, 1px 0 0 #fff, 0 -1px 0 #fff, -1px 0 0 #fff;
+    text-shadow: 0 1px 0 #000, 1px 0 0 #000, 0 -1px 0 #000, -1px 0 0 #000;
+    fill: #e9ecef !important;
 }
 
 .tier-info {
     font-weight: bold;
     font-size: 14px;
+    fill: #e9ecef;
 }

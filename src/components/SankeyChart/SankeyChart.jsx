@@ -14,7 +14,7 @@ const SankeyChart = ({ transactions, selectedAddress, addressData }) => {
         if (!transactions || !selectedAddress || !svgRef.current) return;
 
         // 선택된 주소에 대한 정보 가져오기
-        const addressInfo = addressData.find(a => a.address === selectedAddress) || {};
+        const addressInfo = addressData.find(a => a.address === selectedAddress || a.id === selectedAddress) || {};
 
         // 샌키 차트용 데이터 변환
         const sankeyData = transformToSankeyData(transactions, selectedAddress);
@@ -46,6 +46,7 @@ const SankeyChart = ({ transactions, selectedAddress, addressData }) => {
                 .attr("x", width / 2)
                 .attr("y", height / 2)
                 .attr("text-anchor", "middle")
+                .attr("fill", "#e9ecef")
                 .text("No data available for Sankey chart");
             return;
         }
@@ -71,14 +72,21 @@ const SankeyChart = ({ transactions, selectedAddress, addressData }) => {
         // 샌키 레이아웃 적용
         const { nodes, links } = sankeyGenerator(graph);
 
+        // 페이지랭크 및 티어 안전하게 가져오기
+        const pageRank = addressInfo.pagerank !== undefined ? addressInfo.pagerank : 0.1;
+        const tier = addressInfo.tier || 'bronze';
+
+        // 페이지랭크가 NaN이 아닌지 확인
+        const displayRank = isNaN(pageRank) ? 10 : (pageRank * 100).toFixed(1);
+
         // 티어 정보 표시
         svg.append("text")
             .attr("class", "tier-info")
             .attr("x", width / 2)
             .attr("y", -5)
             .attr("text-anchor", "middle")
-            .attr("fill", getTierColor(addressInfo.tier))
-            .text(`${tierConfig[addressInfo.tier]?.label || '티어 없음'} 티어 (신뢰도: ${(addressInfo.pagerank * 100).toFixed(1)}%)`);
+            .attr("fill", getTierColor(tier))
+            .text(`${tierConfig[tier]?.label || '브론즈'} 티어 (신뢰도: ${displayRank}%)`);
 
         // 링크 그리기
         const link = svg.append("g")
@@ -91,8 +99,8 @@ const SankeyChart = ({ transactions, selectedAddress, addressData }) => {
                 const sourceNode = sankeyData.nodes[d.source.index];
                 const targetNode = sankeyData.nodes[d.target.index];
                 return d3.interpolateRgb(
-                    getChainColor(sourceNode.chain),
-                    getChainColor(targetNode.chain)
+                    getChainColor(sourceNode.chain || 'unknown'),
+                    getChainColor(targetNode.chain || 'unknown')
                 )(0.5);
             })
             .attr("stroke-width", d => Math.max(1, d.width))
@@ -118,13 +126,13 @@ const SankeyChart = ({ transactions, selectedAddress, addressData }) => {
             .attr("y", d => d.y0)
             .attr("height", d => d.y1 - d.y0)
             .attr("width", d => d.x1 - d.x0)
-            .attr("fill", d => getChainColor(d.chain))
-            .attr("stroke", "#000")
+            .attr("fill", d => getChainColor(d.chain || 'unknown'))
+            .attr("stroke", "#333")
             .attr("stroke-opacity", 0.2);
 
         // 노드 호버 툴팁
         node.append("title")
-            .text(d => `${d.name} (${d.chain})`);
+            .text(d => `${d.name} (${d.chain || 'unknown'})`);
 
         // 노드 레이블
         svg.append("g")
@@ -137,8 +145,7 @@ const SankeyChart = ({ transactions, selectedAddress, addressData }) => {
             .attr("dy", "0.35em")
             .attr("text-anchor", d => d.x0 < width / 2 ? "start" : "end")
             .text(d => d.name)
-            .attr("font-size", "10px")
-            .attr("fill", "#333");
+            .attr("font-size", "10px");
 
         // 선택된 노드 강조
         node.filter(d => d.id === selectedAddress)

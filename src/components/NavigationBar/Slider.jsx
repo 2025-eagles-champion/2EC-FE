@@ -1,3 +1,4 @@
+
 // src/components/NavigationBar/Slider.jsx
 import React from 'react';
 import './Slider.css';

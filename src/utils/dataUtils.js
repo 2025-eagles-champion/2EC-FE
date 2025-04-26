@@ -23,6 +23,7 @@ export const transformTransactionsToGraphData = (transactions, addressData) => {
             const addressInfo = addressData.find(a => a && a.address === tx.fromAddress) || {};
             nodes.set(tx.fromAddress, {
                 id: tx.fromAddress,
+                name: getAddressName(tx.fromAddress),
                 chain: tx.fromChain || 'unknown',
                 chainId: tx.fromChainId || 'unknown',
                 sent_tx_count: addressInfo.sent_tx_count || 0,
@@ -38,6 +39,7 @@ export const transformTransactionsToGraphData = (transactions, addressData) => {
             const addressInfo = addressData.find(a => a && a.address === tx.toAddress) || {};
             nodes.set(tx.toAddress, {
                 id: tx.toAddress,
+                name: getAddressName(tx.toAddress),
                 chain: tx.toChain || 'unknown',
                 chainId: tx.toChainId || 'unknown',
                 sent_tx_count: addressInfo.sent_tx_count || 0,
@@ -74,36 +76,137 @@ export const transformTransactionsToGraphData = (transactions, addressData) => {
     };
 };
 
+// 주소 이름 추출 함수 (체인 접두사와 처음 몇 자리)
+export const getAddressName = (address) => {
+    if (!address || typeof address !== 'string') return 'Unknown';
+
+    try {
+        // 체인 접두사와 일부 주소를 포함해 표시
+        const shortenedAddr = shortenAddress(address, 8, 6);
+        return shortenedAddr;
+    } catch (e) {
+        console.warn('Error extracting address name:', e);
+        return 'Unknown';
+    }
+};
+
 // Top-K 노드 선택 함수
 export const getTopKNodes = (addressData, batchWeight, txCountWeight, txAmountWeight, k = 20) => {
     if (!addressData || addressData.length === 0) return [];
 
-    // 가중치 계산
-    const normalizedBatchWeight = batchWeight / 100;
-    const normalizedTxCountWeight = txCountWeight / 100;
-    const normalizedTxAmountWeight = txAmountWeight / 100;
+    // 가중치 정규화
+    const totalWeight = batchWeight + txCountWeight + txAmountWeight;
+    const normalizedBatchWeight = batchWeight / totalWeight;
+    const normalizedTxCountWeight = txCountWeight / totalWeight;
+    const normalizedTxAmountWeight = txAmountWeight / totalWeight;
+
+    // 최대값 찾기 (정규화 위함)
+    const maxPageRank = Math.max(...addressData.map(a => a.pagerank || 0));
+    const maxTxCount = Math.max(...addressData.map(a => (a.sent_tx_count || 0) + (a.recv_tx_count || 0)));
+    const maxTxAmount = Math.max(...addressData.map(a => (a.sent_tx_amount || 0) + (a.recv_tx_amount || 0)));
 
     // 각 주소별 점수 계산
     const scoredAddresses = addressData.map(address => {
-        const batchScore = address.pagerank || 0;
-        const txCountScore = (address.sent_tx_count + address.recv_tx_count) /
-            Math.max(...addressData.map(a => a.sent_tx_count + a.recv_tx_count));
-        const txAmountScore = (address.sent_tx_amount + address.recv_tx_amount) /
-            Math.max(...addressData.map(a => a.sent_tx_amount + a.recv_tx_amount));
+        const pagerankScore = maxPageRank > 0 ? (address.pagerank || 0) / maxPageRank : 0;
+        const txCountScore = maxTxCount > 0 ?
+            ((address.sent_tx_count || 0) + (address.recv_tx_count || 0)) / maxTxCount : 0;
+        const txAmountScore = maxTxAmount > 0 ?
+            ((address.sent_tx_amount || 0) + (address.recv_tx_amount || 0)) / maxTxAmount : 0;
 
         const totalScore =
-            (batchScore * normalizedBatchWeight) +
+            (pagerankScore * normalizedBatchWeight) +
             (txCountScore * normalizedTxCountWeight) +
             (txAmountScore * normalizedTxAmountWeight);
 
         return {
             ...address,
-            score: totalScore
+            score: totalScore,
+            name: getAddressName(address.address)
         };
     });
 
     // 내림차순 정렬 후 Top-K 반환
-    return scoredAddresses.sort((a, b) => b.score - a.score).slice(0, k);
+    return scoredAddresses
+        .sort((a, b) => b.score - a.score)
+        .slice(0, k);
+};
+
+// PageRank 알고리즘 계산 함수
+export const calculatePageRank = (graphData, damping = 0.85, iterations = 20) => {
+    if (!graphData || !graphData.nodes || !graphData.links) {
+        return [];
+    }
+
+    const nodes = graphData.nodes;
+    const links = graphData.links;
+
+    // 노드 ID -> 인덱스 맵핑
+    const nodeMap = new Map();
+    nodes.forEach((node, index) => {
+        nodeMap.set(node.id, index);
+    });
+
+    // 초기 PageRank 값 설정
+    const n = nodes.length;
+    const initialRank = 1 / n;
+    let ranks = new Array(n).fill(initialRank);
+
+    // 링크 정보 구성
+    const outLinks = new Array(n).fill(0);
+    const incomingLinks = Array.from({ length: n }, () => []);
+
+    links.forEach(link => {
+        const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
+        const targetId = typeof link.target === 'object' ? link.target.id : link.target;
+
+        const sourceIdx = nodeMap.get(sourceId);
+        const targetIdx = nodeMap.get(targetId);
+
+        if (sourceIdx !== undefined && targetIdx !== undefined) {
+            outLinks[sourceIdx]++;
+            incomingLinks[targetIdx].push({
+                sourceIdx,
+                weight: link.value || 1
+            });
+        }
+    });
+
+    // PageRank 계산 반복
+    for (let i = 0; i < iterations; i++) {
+        const newRanks = new Array(n).fill((1 - damping) / n);
+
+        for (let j = 0; j < n; j++) {
+            const incoming = incomingLinks[j];
+
+            for (const { sourceIdx, weight } of incoming) {
+                const sourceRank = ranks[sourceIdx];
+                const sourceTotalOut = outLinks[sourceIdx];
+
+                if (sourceTotalOut > 0) {
+                    newRanks[j] += damping * sourceRank * weight / sourceTotalOut;
+                }
+            }
+        }
+
+        // 정규화
+        let sum = 0;
+        for (let j = 0; j < n; j++) {
+            sum += newRanks[j];
+        }
+
+        for (let j = 0; j < n; j++) {
+            newRanks[j] /= sum;
+        }
+
+        ranks = newRanks;
+    }
+
+    // 결과 매핑
+    return nodes.map((node, index) => ({
+        ...node,
+        pagerank: ranks[index],
+        tier: getTierFromPageRank(ranks[index])
+    }));
 };
 
 // 샌키 차트용 데이터 변환 함수
@@ -123,7 +226,7 @@ export const transformToSankeyData = (transactions, selectedAddress) => {
         if (!nodeMap.has(tx.fromAddress)) {
             nodeMap.set(tx.fromAddress, {
                 id: tx.fromAddress,
-                name: shortenAddress(tx.fromAddress),
+                name: getAddressName(tx.fromAddress),
                 chain: tx.fromChain
             });
         }
@@ -131,7 +234,7 @@ export const transformToSankeyData = (transactions, selectedAddress) => {
         if (!nodeMap.has(tx.toAddress)) {
             nodeMap.set(tx.toAddress, {
                 id: tx.toAddress,
-                name: shortenAddress(tx.toAddress),
+                name: getAddressName(tx.toAddress),
                 chain: tx.toChain
             });
         }

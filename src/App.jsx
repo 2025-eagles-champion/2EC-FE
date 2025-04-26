@@ -4,7 +4,13 @@ import './App.css';
 import NetworkGraph from './components/NetworkGraph/NetworkGraph';
 import NavigationBar from './components/NavigationBar/NavigationBar';
 import BottomSheet from './components/BottomSheet/BottomSheet';
-import { fetchTransactions, fetchAddressData } from './services/api';
+import {
+    fetchTransactions,
+    fetchAddressData,
+    initDataLoading,
+    getDataLoadingProgress,
+    cleanupData
+} from './services/api';
 
 function App() {
     const [transactions, setTransactions] = useState([]);
@@ -12,6 +18,7 @@ function App() {
     const [selectedNode, setSelectedNode] = useState(null);
     const [bottomSheetOpen, setBottomSheetOpen] = useState(false);
     const [loading, setLoading] = useState(true);
+    const [loadingProgress, setLoadingProgress] = useState(0);
     const [error, setError] = useState(null);
 
     // 데이터 로드
@@ -19,23 +26,57 @@ function App() {
         const loadData = async () => {
             setLoading(true);
             try {
+                // 데이터 로딩 시작
+                initDataLoading();
+
+                // 진행률 업데이트 간격 설정
+                const progressInterval = setInterval(() => {
+                    const progress = getDataLoadingProgress();
+                    setLoadingProgress(progress);
+                }, 300);
+
+                // 데이터 로딩 완료 이벤트 리스너
+                const handleDataLoaded = (event) => {
+                    const { transactions, addressData } = event.detail;
+
+                    setTransactions(transactions);
+                    setAddressData(addressData);
+                    setLoading(false);
+                    setError(null);
+
+                    clearInterval(progressInterval);
+                    window.removeEventListener('dataLoaded', handleDataLoaded);
+                };
+
+                window.addEventListener('dataLoaded', handleDataLoaded);
+
+                // 직접 API 호출도 백업으로 유지
                 const [txData, addrData] = await Promise.all([
                     fetchTransactions(),
                     fetchAddressData()
                 ]);
 
-                setTransactions(txData);
-                setAddressData(addrData);
-                setError(null);
+                // 이벤트가 발생하지 않은 경우를 대비
+                if (loading) {
+                    setTransactions(txData);
+                    setAddressData(addrData);
+                    setLoading(false);
+                    clearInterval(progressInterval);
+                }
+
             } catch (err) {
                 console.error('Error loading data:', err);
                 setError('데이터를 불러오는 중 오류가 발생했습니다.');
-            } finally {
                 setLoading(false);
             }
         };
 
         loadData();
+
+        // 컴포넌트 언마운트 시 리소스 정리
+        return () => {
+            cleanupData();
+        };
     }, []);
 
     // 노드 선택 처리
@@ -70,7 +111,13 @@ function App() {
         return (
             <div className="loading-container">
                 <div className="loading-spinner"></div>
-                <p>데이터 로딩 중...</p>
+                <p>데이터 로딩 중... {loadingProgress}%</p>
+                <div className="progress-bar">
+                    <div
+                        className="progress-fill"
+                        style={{ width: `${loadingProgress}%` }}
+                    ></div>
+                </div>
             </div>
         );
     }

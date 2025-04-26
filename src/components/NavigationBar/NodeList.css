@@ -12,13 +12,13 @@
     display: flex;
     align-items: center;
     padding: 12px;
-    border-bottom: 1px solid #e9ecef;
+    border-bottom: 1px solid #2a2a2a;
     cursor: pointer;
     transition: background-color 0.2s;
 }
 
 .node-list li:hover {
-    background-color: #f1f3f5;
+    background-color: #2a2a2a;
 }
 
 .node-rank {
@@ -27,11 +27,11 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    background-color: #e9ecef;
+    background-color: #333;
     border-radius: 50%;
     font-size: 0.8rem;
     font-weight: bold;
-    color: #495057;
+    color: #e9ecef;
     margin-right: 12px;
 }
 
@@ -49,7 +49,7 @@
 
 .node-address {
     font-weight: 500;
-    color: #212529;
+    color: #e9ecef;
     margin-bottom: 4px;
     white-space: nowrap;
     overflow: hidden;
@@ -62,7 +62,7 @@
 }
 
 .node-chain {
-    color: #6c757d;
+    color: #adb5bd;
     margin-right: 8px;
 }
 
@@ -79,7 +79,7 @@
 
 .stat {
     font-size: 0.8rem;
-    color: #6c757d;
+    color: #adb5bd;
     margin-bottom: 2px;
     display: flex;
     justify-content: space-between;
@@ -88,11 +88,11 @@
 
 .stat-value {
     font-weight: 500;
-    color: #212529;
+    color: #e9ecef;
 }
 
 .no-nodes {
     padding: 20px;
     text-align: center;
-    color: #6c757d;
+    color: #adb5bd;
 }

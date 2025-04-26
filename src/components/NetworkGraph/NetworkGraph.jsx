@@ -1,8 +1,9 @@
+// src/components/NetworkGraph/NetworkGraph.jsx
 import React, { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
 import './NetworkGraph.css';
 import { getChainColor, getLinkColor, getNodeSize } from '../../utils/colorUtils';
-import { transformTransactionsToGraphData } from '../../utils/dataUtils';
+import { transformTransactionsToGraphData, shortenAddress } from '../../utils/dataUtils';
 
 const NetworkGraph = ({ transactions, addressData, onNodeClick, selectedNode }) => {
     const svgRef = useRef(null);
@@ -75,15 +76,12 @@ const NetworkGraph = ({ transactions, addressData, onNodeClick, selectedNode }) 
             .attr("stroke-opacity", 0.6);
 
         // 노드 생성
-        const node = g.append("g")
+        const nodeGroup = g.append("g")
             .attr("class", "nodes")
-            .selectAll("circle")
+            .selectAll("g")
             .data(graphData.nodes)
-            .enter().append("circle")
-            .attr("r", d => getNodeSize(d))
-            .attr("fill", d => getChainColor(d.chain))
-            .attr("stroke", "#fff")
-            .attr("stroke-width", 1.5)
+            .enter().append("g")
+            .attr("class", "node")
             .call(d3.drag()
                 .on("start", dragstarted)
                 .on("drag", dragged)
@@ -94,16 +92,32 @@ const NetworkGraph = ({ transactions, addressData, onNodeClick, selectedNode }) 
                 onNodeClick(d);
             });
 
+        // 노드 원형 생성
+        nodeGroup.append("circle")
+            .attr("r", d => getNodeSize(d))
+            .attr("fill", d => getChainColor(d.chain))
+            .attr("stroke", "#fff")
+            .attr("stroke-width", 1.5);
+
+        // 노드 라벨 추가
+        nodeGroup.append("text")
+            .attr("dy", d => getNodeSize(d) + 15)
+            .attr("text-anchor", "middle")
+            .attr("class", "node-label")
+            .text(d => d.name || shortenAddress(d.id, 5, 4));
+
         // 선택된 노드 강조 표시
         if (selectedNode) {
-            node.attr("opacity", d => d.id === selectedNode.id ? 1 : 0.5);
-            link.attr("opacity", d =>
-                d.source.id === selectedNode.id || d.target.id === selectedNode.id ? 1 : 0.2
-            );
+            nodeGroup.attr("opacity", d => d.id === selectedNode.id ? 1 : 0.5);
+            link.attr("opacity", d => {
+                const sourceId = typeof d.source === 'object' ? d.source.id : d.source;
+                const targetId = typeof d.target === 'object' ? d.target.id : d.target;
+                return sourceId === selectedNode.id || targetId === selectedNode.id ? 1 : 0.2;
+            });
         }
 
         // 노드에 툴팁 추가
-        node.append("title")
+        nodeGroup.append("title")
             .text(d => `${d.id} (${d.chain})`);
 
         // 시뮬레이션 이벤트 핸들러
@@ -114,9 +128,8 @@ const NetworkGraph = ({ transactions, addressData, onNodeClick, selectedNode }) 
                 .attr("x2", d => d.target.x)
                 .attr("y2", d => d.target.y);
 
-            node
-                .attr("cx", d => d.x)
-                .attr("cy", d => d.y);
+            nodeGroup
+                .attr("transform", d => `translate(${d.x},${d.y})`);
         });
 
         // 드래그 함수
@@ -142,8 +155,8 @@ const NetworkGraph = ({ transactions, addressData, onNodeClick, selectedNode }) 
             const nodeObj = graphData.nodes.find(n => n.id === selectedNode.id);
             if (nodeObj) {
                 const scale = 2;
-                const x = width / 2 - nodeObj.x * scale;
-                const y = height / 2 - nodeObj.y * scale;
+                const x = width / 2 - (nodeObj.x || 0) * scale;
+                const y = height / 2 - (nodeObj.y || 0) * scale;
 
                 svg.transition()
                     .duration(750)

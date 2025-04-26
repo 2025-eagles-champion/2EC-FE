@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './BottomSheet.css';
 import SankeyChart from '../SankeyChart/SankeyChart';
-import { shortenAddress } from '../../utils/dataUtils';
+import { shortenAddress, getAddressName } from '../../utils/dataUtils';
 import { fetchAddressDetail, fetchAddressTransactions } from '../../services/api';
 import { tierConfig } from '../../constants/tierConfig';
 import { getChainColor, getTierColor } from '../../utils/colorUtils';
@@ -18,23 +18,60 @@ const BottomSheet = ({ isOpen, onClose, selectedNode, allTransactions, addressDa
         if (selectedNode && isOpen) {
             setLoading(true);
 
-            // 동시에 두 API 호출
+            const nodeId = selectedNode.id || selectedNode.address;
+            if (!nodeId) {
+                console.error("Node has no identifier:", selectedNode);
+                setLoading(false);
+                return;
+            }
+
+            // 직접 데이터 찾기
+            const directSearch = (id) => {
+                const addrInfo = addressData.find(a => a.address === id || a.id === id);
+                const transactions = allTransactions.filter(tx =>
+                    tx.fromAddress === id || tx.toAddress === id
+                );
+
+                if (addrInfo) {
+                    setNodeDetail(addrInfo);
+                    setNodeTransactions(transactions);
+                    setLoading(false);
+                    return true;
+                }
+                return false;
+            };
+
+            // 직접 검색 시도
+            if (directSearch(nodeId)) {
+                return;
+            }
+
+            // API 호출로 시도
             Promise.all([
-                fetchAddressDetail(selectedNode.id),
-                fetchAddressTransactions(selectedNode.id)
+                fetchAddressDetail(nodeId).catch(() => {
+                    // API 호출 실패 시 기본값 제공
+                    console.log("API fetch failed, using fallback data");
+                    return {
+                        address: nodeId,
+                        sent_tx_count: 0,
+                        recv_tx_count: 0,
+                        sent_tx_amount: 0,
+                        recv_tx_amount: 0,
+                        pagerank: 0.1,
+                        tier: "bronze"
+                    };
+                }),
+                fetchAddressTransactions(nodeId).catch(() => [])
             ])
                 .then(([detailData, transactionData]) => {
                     setNodeDetail(detailData);
                     setNodeTransactions(transactionData);
                 })
-                .catch(error => {
-                    console.error("Error fetching node details:", error);
-                })
                 .finally(() => {
                     setLoading(false);
                 });
         }
-    }, [selectedNode, isOpen]);
+    }, [selectedNode, isOpen, addressData, allTransactions]);
 
     // 바텀 시트 닫기
     const handleClose = () => {
@@ -97,7 +134,9 @@ const BottomSheet = ({ isOpen, onClose, selectedNode, allTransactions, addressDa
 
     // 노드 상세 정보 렌더링
     const renderNodeDetailInfo = () => {
-        if (!nodeDetail || !selectedNode || !selectedNode.id) return null;
+        if (!nodeDetail || !selectedNode) return null;
+
+        const nodeId = selectedNode.id || selectedNode.address || '';
 
         // 주소로부터 체인 이름 추출 - 안전하게 처리
         let chainName = 'unknown';
@@ -105,13 +144,21 @@ const BottomSheet = ({ isOpen, onClose, selectedNode, allTransactions, addressDa
             if (selectedNode.chain) {
                 // 노드에 체인 정보가 있으면 직접 사용
                 chainName = selectedNode.chain;
-            } else if (typeof selectedNode.id === 'string' && selectedNode.id.includes('1')) {
+            } else if (typeof nodeId === 'string' && nodeId.includes('1')) {
                 // 주소 형식에서 체인 이름 추출 시도
-                chainName = selectedNode.id.split('1')[0];
+                chainName = nodeId.split('1')[0];
             }
         } catch (e) {
             console.warn('Error extracting chain name:', e);
         }
+
+        // 페이지랭크가 없으면 0.1로 설정
+        const pageRank = nodeDetail.pagerank !== undefined ? nodeDetail.pagerank : 0.1;
+        // 티어가 없으면 기본값으로 bronze
+        const tier = nodeDetail.tier || 'bronze';
+
+        // 페이지랭크가 NaN이 아닌지 확인
+        const displayRank = isNaN(pageRank) ? 10 : (pageRank * 100).toFixed(1);
 
         return (
             <div className="node-detail-info">
@@ -121,13 +168,13 @@ const BottomSheet = ({ isOpen, onClose, selectedNode, allTransactions, addressDa
                             className="node-icon"
                             style={{ backgroundColor: getChainColor(chainName) }}
                         ></div>
-                        <h3>{shortenAddress(selectedNode.id, 8, 8)}</h3>
+                        <h3>{shortenAddress(nodeId, 8, 8)}</h3>
                     </div>
                     <div
                         className="tier-badge"
-                        style={{ backgroundColor: getTierColor(nodeDetail.tier) }}
+                        style={{ backgroundColor: getTierColor(tier) }}
                     >
-                        {tierConfig[nodeDetail.tier]?.label || '티어 없음'}
+                        {tierConfig[tier]?.label || '브론즈'}
                     </div>
                 </div>
 

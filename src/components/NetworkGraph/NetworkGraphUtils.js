@@ -1,4 +1,3 @@
-// src/components/NetworkGraph/NetworkGraphUtils.js
 // 노드 포지셔닝 헬퍼
 export const repositionNode = (nodeId, x, y, graphData, updateGraphData) => {
     const updatedNodes = graphData.nodes.map(node => {

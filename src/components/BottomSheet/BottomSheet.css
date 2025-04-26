@@ -1,17 +1,17 @@
 .bottom-sheet-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.5);
-    display: flex;
-    justify-content: center;
-    align-items: flex-end;
-    z-index: 1000;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.3s ease;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  z-index: 1000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
 }
 
 .bottom-sheet-overlay.open {
@@ -20,11 +20,11 @@
 }
 
 .bottom-sheet {
-    background-color: #fff;
+    background-color: #1a1a1a;
     width: 100%;
     max-height: 75vh;
     border-radius: 20px 20px 0 0;
-    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
     transform: translateY(100%);
     transition: transform 0.3s ease;
     overflow: hidden;
@@ -41,13 +41,13 @@
     display: flex;
     justify-content: center;
     position: relative;
-    border-bottom: 1px solid #eaecef;
+    border-bottom: 1px solid #2a2a2a;
 }
 
 .handle-bar {
     width: 40px;
     height: 4px;
-    background-color: #dee2e6;
+    background-color: #4a4a4a;
     border-radius: 2px;
 }
 
@@ -58,18 +58,19 @@
     background: none;
     border: none;
     font-size: 24px;
-    color: #868e96;
+    color: #adb5bd;
     cursor: pointer;
 }
 
 .close-button:hover {
-    color: #212529;
+    color: #e9ecef;
 }
 
 .bottom-sheet-content {
     padding: 16px;
     overflow-y: auto;
     flex: 1;
+    color: #e9ecef;
 }
 
 .loading-spinner {
@@ -77,7 +78,7 @@
     justify-content: center;
     align-items: center;
     height: 200px;
-    color: #6c757d;
+    color: #adb5bd;
 }
 
 .node-detail-info {
@@ -106,7 +107,7 @@
 .node-title h3 {
     margin: 0;
     font-size: 1.25rem;
-    color: #212529;
+    color: #e9ecef;
 }
 
 .tier-badge {
@@ -114,7 +115,7 @@
     border-radius: 16px;
     font-size: 0.85rem;
     font-weight: 500;
-    color: #fff;
+    color: #121212;
 }
 
 .stats-grid {
@@ -124,7 +125,7 @@
 }
 
 .stat-card {
-    background-color: #f8f9fa;
+    background-color: #2a2a2a;
     border-radius: 8px;
     padding: 12px;
     text-align: center;
@@ -132,14 +133,14 @@
 
 .stat-title {
     font-size: 0.85rem;
-    color: #6c757d;
+    color: #adb5bd;
     margin-bottom: 4px;
 }
 
 .stat-value {
     font-size: 1.1rem;
     font-weight: 500;
-    color: #212529;
+    color: #e9ecef;
 }
 
 .sankey-section {
@@ -149,7 +150,7 @@
 .sankey-section h4 {
     margin-top: 0;
     margin-bottom: 12px;
-    color: #212529;
+    color: #e9ecef;
 }
 
 .transactions-list {
@@ -159,7 +160,7 @@
 .transactions-list h4 {
     margin-top: 0;
     margin-bottom: 12px;
-    color: #212529;
+    color: #e9ecef;
 }
 
 .transactions-list table {
@@ -171,13 +172,13 @@
 .transactions-list td {
     padding: 10px;
     text-align: left;
-    border-bottom: 1px solid #e9ecef;
+    border-bottom: 1px solid #2a2a2a;
 }
 
 .transactions-list th {
     font-weight: 500;
-    color: #495057;
-    background-color: #f8f9fa;
+    color: #adb5bd;
+    background-color: #222222;
 }
 
 .address-chip {
@@ -185,11 +186,11 @@
     padding: 2px 6px;
     border-radius: 4px;
     font-size: 0.8rem;
-    color: #fff;
+    color: #121212;
 }
 
 .no-transactions {
     text-align: center;
     padding: 24px;
-    color: #6c757d;
+    color: #adb5bd;
 }

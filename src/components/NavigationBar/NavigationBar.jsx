@@ -5,6 +5,8 @@ import NodeList from './NodeList';
 import './NavigationBar.css';
 import { fetchTopKNodes } from '../../services/api';
 import { getTierColor } from '../../utils/colorUtils';
+import { getTopKNodes } from '../../utils/dataUtils';
+import { fetchAddressData } from '../../services/api';
 
 const NavigationBar = ({ onNodeSelect }) => {
     // 슬라이더 상태 값
@@ -13,13 +15,41 @@ const NavigationBar = ({ onNodeSelect }) => {
     const [txAmountWeight, setTxAmountWeight] = useState(25);
     const [topNodes, setTopNodes] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [addressData, setAddressData] = useState([]);
+
+    useEffect(() => {
+        console.log('topNodes:', topNodes);
+    }, [topNodes]);
+
+    // 주소 데이터 로드
+    useEffect(() => {
+        const loadAddressData = async () => {
+            try {
+                const data = await fetchAddressData();
+                setAddressData(data);
+            } catch (error) {
+                console.error("Failed to fetch address data:", error);
+            }
+        };
+
+        loadAddressData();
+    }, []);
 
     // 슬라이더 값이 변경될 때마다 Top-K 노드 조회
     useEffect(() => {
         const getTopNodes = async () => {
+            if (addressData.length === 0) return;
+
             setLoading(true);
             try {
+                // 1. 백엔드 API 방식 (현재 비활성화)
+                /*
                 const nodes = await fetchTopKNodes(batchWeight, txCountWeight, txAmountWeight);
+                setTopNodes(nodes);
+                */
+
+                // 2. 클라이언트 측 계산 방식
+                const nodes = getTopKNodes(addressData, batchWeight, txCountWeight, txAmountWeight, 20);
                 setTopNodes(nodes);
             } catch (error) {
                 console.error("Failed to fetch top nodes:", error);
@@ -34,7 +64,7 @@ const NavigationBar = ({ onNodeSelect }) => {
         }, 300);
 
         return () => clearTimeout(timeoutId);
-    }, [batchWeight, txCountWeight, txAmountWeight]);
+    }, [batchWeight, txCountWeight, txAmountWeight, addressData]);
 
     // 슬라이더 값 변경 핸들러
     const handleBatchWeightChange = (value) => {
@@ -105,4 +135,3 @@ const NavigationBar = ({ onNodeSelect }) => {
 };
 
 export default NavigationBar;
-

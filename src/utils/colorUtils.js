@@ -1,4 +1,3 @@
-
 // src/utils/colorUtils.js
 import { chainColors } from '../constants/chainColors';
 import { tierConfig } from '../constants/tierConfig';
