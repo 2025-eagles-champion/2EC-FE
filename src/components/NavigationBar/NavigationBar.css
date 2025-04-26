@@ -3,15 +3,15 @@
     height: 100vh;
     display: flex;
     flex-direction: column;
-    background-color: #1a1a1a;
-    box-shadow: -2px 0 10px rgba(0, 0, 0, 0.3);
+    background-color: #f8f9fa;
+    box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
     overflow: hidden;
 }
 
 .sliders-section {
     flex: 1;
     padding: 20px;
-    border-bottom: 1px solid #2a2a2a;
+    border-bottom: 1px solid #dee2e6;
     overflow-y: auto;
 }
 
@@ -29,20 +29,20 @@
     display: block;
     margin-bottom: 8px;
     font-weight: 500;
-    color: #adb5bd;
+    color: #495057;
 }
 
 .slider-value {
     display: inline-block;
     margin-left: 10px;
     font-weight: bold;
-    color: #e9ecef;
+    color: #212529;
 }
 
 h3 {
     margin-top: 0;
     margin-bottom: 20px;
-    color: #e9ecef;
+    color: #212529;
     font-size: 1.2rem;
 }
 
@@ -51,5 +51,5 @@ h3 {
     justify-content: center;
     align-items: center;
     height: 100px;
-    color: #adb5bd;
+    color: #6c757d;
 }

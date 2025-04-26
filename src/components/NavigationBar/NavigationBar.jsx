@@ -1,12 +1,10 @@
 // src/components/NavigationBar/NavigationBar.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Slider from './Slider';
 import NodeList from './NodeList';
 import './NavigationBar.css';
-import { fetchTopKNodes } from '../../services/api';
-import { getTierColor } from '../../utils/colorUtils';
-import { getTopKNodes } from '../../utils/dataUtils';
 import { fetchAddressData } from '../../services/api';
+import { getTopKNodes } from '../../utils/dataUtils';
 
 const NavigationBar = ({ onNodeSelect }) => {
     // 슬라이더 상태 값
@@ -17,15 +15,12 @@ const NavigationBar = ({ onNodeSelect }) => {
     const [loading, setLoading] = useState(false);
     const [addressData, setAddressData] = useState([]);
 
-    useEffect(() => {
-        console.log('topNodes:', topNodes);
-    }, [topNodes]);
-
     // 주소 데이터 로드
     useEffect(() => {
         const loadAddressData = async () => {
             try {
                 const data = await fetchAddressData();
+                console.log("Loaded address data:", data.length, "items");
                 setAddressData(data);
             } catch (error) {
                 console.error("Failed to fetch address data:", error);
@@ -35,24 +30,30 @@ const NavigationBar = ({ onNodeSelect }) => {
         loadAddressData();
     }, []);
 
+    // Top-K 노드 계산 함수 (memoized)
+    const calculateTopNodes = useCallback(() => {
+        if (!addressData || addressData.length === 0) {
+            console.log("No address data to calculate top nodes");
+            return [];
+        }
+
+        try {
+            const nodes = getTopKNodes(addressData, batchWeight, txCountWeight, txAmountWeight, 20);
+            console.log("Calculated top nodes:", nodes.length, "items");
+            return nodes;
+        } catch (error) {
+            console.error("Error calculating top nodes:", error);
+            return [];
+        }
+    }, [addressData, batchWeight, txCountWeight, txAmountWeight]);
+
     // 슬라이더 값이 변경될 때마다 Top-K 노드 조회
     useEffect(() => {
         const getTopNodes = async () => {
-            if (addressData.length === 0) return;
-
             setLoading(true);
             try {
-                // 1. 백엔드 API 방식 (현재 비활성화)
-                /*
-                const nodes = await fetchTopKNodes(batchWeight, txCountWeight, txAmountWeight);
+                const nodes = calculateTopNodes();
                 setTopNodes(nodes);
-                */
-
-                // 2. 클라이언트 측 계산 방식
-                const nodes = getTopKNodes(addressData, batchWeight, txCountWeight, txAmountWeight, 20);
-                setTopNodes(nodes);
-            } catch (error) {
-                console.error("Failed to fetch top nodes:", error);
             } finally {
                 setLoading(false);
             }
@@ -64,25 +65,31 @@ const NavigationBar = ({ onNodeSelect }) => {
         }, 300);
 
         return () => clearTimeout(timeoutId);
-    }, [batchWeight, txCountWeight, txAmountWeight, addressData]);
+    }, [calculateTopNodes]);
 
     // 슬라이더 값 변경 핸들러
     const handleBatchWeightChange = (value) => {
+        console.log("Batch weight changed to:", value);
         setBatchWeight(value);
     };
 
     const handleTxCountWeightChange = (value) => {
+        console.log("TX count weight changed to:", value);
         setTxCountWeight(value);
     };
 
     const handleTxAmountWeightChange = (value) => {
+        console.log("TX amount weight changed to:", value);
         setTxAmountWeight(value);
     };
 
     // 노드 선택 핸들러
     const handleNodeSelect = (node) => {
+        console.log("Node selected:", node);
         onNodeSelect(node);
     };
+
+    console.log("NavigationBar rendering with top nodes:", topNodes?.length);
 
     return (
         <div className="navigation-bar">
@@ -123,11 +130,11 @@ const NavigationBar = ({ onNodeSelect }) => {
             </div>
 
             <div className="nodes-section">
-                <h3>Top 노드 목록</h3>
+                <h3>Top 노드 목록 ({topNodes?.length || 0})</h3>
                 {loading ? (
                     <div className="loading">노드 목록 로딩 중...</div>
                 ) : (
-                    <NodeList nodes={topNodes} onNodeSelect={handleNodeSelect} />
+                    <NodeList key="nodelist" nodes={topNodes} onNodeSelect={handleNodeSelect} />
                 )}
             </div>
         </div>

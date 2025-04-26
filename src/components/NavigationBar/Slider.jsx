@@ -1,5 +1,3 @@
-
-// src/components/NavigationBar/Slider.jsx
 import React from 'react';
 import './Slider.css';
 
@@ -23,7 +21,7 @@ const Slider = ({ value, onChange, min = 0, max = 100, step = 1 }) => {
                 <div
                     className="slider-fill"
                     style={{ width: `${((value - min) / (max - min)) * 100}%` }}
-                ></div>
+                />
             </div>
         </div>
     );
