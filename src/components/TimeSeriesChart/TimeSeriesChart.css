@@ -1,0 +1,34 @@
+.ts-container {
+  width: 100%;
+  margin-top: 8px;
+}
+
+.ts-toggle-bar {
+  margin-bottom: 6px;
+  display: flex;
+  gap: 6px;
+}
+
+.ts-toggle-btn {
+  padding: 4px 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: #fafafa;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.ts-toggle-btn.active {
+  background: #333;
+  color: #fff;
+  border-color: #333;
+}
+
+.ts-chart-svg {
+  width: 100%;
+  height: 420px; /* 부모 컴포넌트에 맞게 조절 */
+}
+
+.ts-tooltip {
+  pointer-events: none;
+}

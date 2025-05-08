@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import './BottomSheet.css';
 import SankeyChart from '../SankeyChart/SankeyChart';
 import StoryLineChart from '../StoryLineChart/StoryLineChart'; // StoryLineChart 컴포넌트 import
+import TimeSeriesChart from '../TimeSeriesChart/TimeSeriesChart'; // TimeSeriesChart 컴포넌트 import
 import { shortenAddress, getAddressName } from '../../utils/dataUtils';
 import { fetchAddressDetail, fetchAddressTransactions } from '../../services/api';
 import { tierConfig } from '../../constants/tierConfig';
@@ -243,6 +244,15 @@ const BottomSheet = ({ isOpen, onClose, selectedNode, allTransactions, addressDa
                             <div className="storyline-section">
                                 <h4>시간에 따른 체인 거래 흐름</h4>
                                 <StoryLineChart
+                                    transactions={nodeTransactions}
+                                    selectedAddress={selectedNode?.id || selectedNode?.address}
+                                />
+                            </div>
+
+                            {/* TimeSeriesChart.jsx */}
+                            <div className="timeseries-section">
+                                <h4>시간 축 기반 시각화</h4>
+                                <TimeSeriesChart
                                     transactions={nodeTransactions}
                                     selectedAddress={selectedNode?.id || selectedNode?.address}
                                 />
