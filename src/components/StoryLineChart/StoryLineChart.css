@@ -43,6 +43,16 @@
     stroke: #4caf50;
 }
 
+.internal-tx {
+    stroke: #9c27b0;
+}
+
+.current-node-marker {
+    stroke: #2196f3;
+    stroke-dasharray: 2,1;
+    filter: drop-shadow(0 0 2px rgba(33, 150, 243, 0.5));
+}
+
 .storyline-tooltip {
     line-height: 1.4;
     pointer-events: none !important;

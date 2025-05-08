@@ -111,7 +111,7 @@ const StoryLineChart = ({ transactions, selectedAddress }) => {
             .attr("text-anchor", "middle")
             .text("시간");
 
-        // 각 체인 레인 라인 추가
+        // 체인 레인 및 체인 이름 라벨 추가
         reorderedChains.forEach(chain => {
             // 체인 레인 배경
             svg.append("rect")
@@ -132,6 +132,16 @@ const StoryLineChart = ({ transactions, selectedAddress }) => {
                 .attr("stroke-width", 1)
                 .attr("stroke-opacity", 0.5)
                 .attr("stroke-dasharray", "3,3");
+
+            // 선택된 노드의 체인인 경우 강조
+            if (chain === selectedChain) {
+                svg.append("rect")
+                    .attr("x", -margin.left)
+                    .attr("y", chainScale(chain))
+                    .attr("width", 3)
+                    .attr("height", chainScale.bandwidth())
+                    .attr("fill", "#2196F3");
+            }
 
             // 체인 이름 라벨
             svg.append("text")
@@ -163,19 +173,30 @@ const StoryLineChart = ({ transactions, selectedAddress }) => {
 
         // 트랜잭션 노드와 연결선 그리기
         relevantTxs.forEach((tx, i) => {
-            const isOutgoing = tx.fromAddress === selectedAddress;
-            const isIncoming = tx.toAddress === selectedAddress;
+            // 노드 크기 및 기본 속성 계산
+            const nodeRadius = Math.max(3, Math.min(8, Math.log(tx.amount || 1) + 2));
+            const strokeWidth = Math.max(1, Math.min(5, Math.log(tx.amount || 1) + 1));
 
+            // 노드 위치 계산
             const txTime = new Date(tx.timestamp);
             const fromY = chainScale(tx.fromChain) + chainScale.bandwidth() / 2;
             const toY = chainScale(tx.toChain) + chainScale.bandwidth() / 2;
             const x = timeScale(txTime);
 
-            // 연결선 (거래량에 따른 두께)
-            const strokeWidth = Math.max(1, Math.min(5, Math.log(tx.amount || 1) + 1));
+            // 노드 유형 결정
+            const isSelectedFromNode = tx.fromAddress === selectedAddress;
+            const isSelectedToNode = tx.toAddress === selectedAddress;
+            const isInternalTx = tx.fromChain === tx.toChain;
+            const isCurrentNodeFrom = isSelectedFromNode;
+            const isCurrentNodeTo = isSelectedToNode;
 
-            // 체인 간 트랜잭션 라인 그리기
+            // 노드 클래스 결정
+            const fromNodeClass = isInternalTx ? "outgoing-tx internal-tx" : "outgoing-tx";
+            const toNodeClass = isInternalTx ? "incoming-tx internal-tx" : "incoming-tx";
+
+            // 체인 간 거래 or 동일 체인 내 거래 표시
             if (tx.fromChain !== tx.toChain) {
+                // 체인 간 트랜잭션 라인 (다른 체인 간)
                 // 곡선 구성
                 const curve = d3.line()
                     .x(d => d.x)
@@ -201,46 +222,61 @@ const StoryLineChart = ({ transactions, selectedAddress }) => {
                     .attr("stroke-width", strokeWidth)
                     .attr("stroke-opacity", 0.7)
                     .attr("fill", "none");
+            } else {
+                // 동일 체인 내 거래인 경우, 수신 노드도 표시
+                // 동일 체인 내 거래는 선을 다른 스타일로 표시
+                svg.append("line")
+                    .attr("x1", x)
+                    .attr("y1", fromY)
+                    .attr("x2", x + 15) // 약간 옆으로 이동
+                    .attr("y2", fromY)
+                    .attr("stroke", getChainColor(tx.fromChain))
+                    .attr("stroke-width", strokeWidth)
+                    .attr("stroke-opacity", 0.7)
+                    .attr("stroke-dasharray", "3,2");
             }
 
-            // 노드 크기 (거래량에 따라)
-            const nodeRadius = Math.max(3, Math.min(8, Math.log(tx.amount || 1) + 2));
-
-            // 선택된 노드 여부 확인 - 클릭한 노드 강조 표시를 위해
-            const isSelectedFromNode = tx.fromAddress === selectedAddress;
-            const isSelectedToNode = tx.toAddress === selectedAddress;
-
-            // 노드 클래스 결정 (선택된 노드와의 관계 표시)
-            let nodeClass = "";
-            if (isSelectedFromNode) {
-                nodeClass = "outgoing-tx";
-            } else if (isSelectedToNode) {
-                nodeClass = "incoming-tx";
-            }
-
-            // From 노드
+            // From 노드 그룹 생성
             const fromNodeGroup = svg.append("g")
                 .attr("class", "tx-node-group")
                 .attr("transform", `translate(${x},${fromY})`);
 
-            // 클릭한 노드인 경우 강조를 위한 외부 원 추가
-            if (isSelectedFromNode) {
-                fromNodeGroup.append("circle")
-                    .attr("r", nodeRadius + 4)
-                    .attr("fill", "none")
-                    .attr("stroke", "#FF5722")
-                    .attr("stroke-width", 2)
-                    .attr("stroke-dasharray", "3,2");
+            // 노드 색상 및 스타일 설정
+            let fromStrokeColor = "#FF5722";   // 발신 노드 기본 색상
+            let fromDashArray = null;          // 대시 패턴
+
+            // 내부 거래인 경우 색상 변경
+            if (isInternalTx) {
+                fromStrokeColor = "#9C27B0"; // 내부 거래는 보라색
             }
+
+            // 현재 노드인 경우 표시
+            if (isCurrentNodeFrom) {
+                fromDashArray = "3,2";
+                fromNodeGroup.append("circle")
+                    .attr("r", nodeRadius + 5)
+                    .attr("fill", "none")
+                    .attr("stroke", "#2196F3") // 현재 노드는 파란색
+                    .attr("stroke-width", 2)
+                    .attr("stroke-dasharray", "2,1");
+            }
+
+            // 노드 외곽선 추가 (발신 노드)
+            fromNodeGroup.append("circle")
+                .attr("r", nodeRadius + 2)
+                .attr("fill", "none")
+                .attr("stroke", fromStrokeColor)
+                .attr("stroke-width", 1.5)
+                .attr("stroke-dasharray", fromDashArray);
 
             // 실제 노드
             fromNodeGroup.append("circle")
-                .attr("class", `tx-node ${nodeClass}`)
+                .attr("class", `tx-node ${fromNodeClass}`)
                 .attr("r", nodeRadius)
                 .attr("fill", getChainColor(tx.fromChain))
-                .attr("stroke", isSelectedFromNode ? "#FF5722" : "#fff")
-                .attr("stroke-width", isSelectedFromNode ? 2 : 1)
-                .attr("opacity", isSelectedFromNode ? 1 : 0.7);
+                .attr("stroke", "#fff")
+                .attr("stroke-width", 0.5)
+                .attr("opacity", isCurrentNodeFrom ? 1 : 0.8);
 
             // 이벤트를 그룹에 바인딩
             fromNodeGroup
@@ -248,8 +284,14 @@ const StoryLineChart = ({ transactions, selectedAddress }) => {
                     // 노드 강조
                     d3.select(this).select(".tx-node").attr("opacity", 1);
 
+                    // 노드 유형 결정
+                    let nodeType = "발신 노드";
+                    if (isInternalTx) nodeType += " (내부 거래)";
+                    if (isCurrentNodeFrom) nodeType += " (현재 노드)";
+
                     // 툴팁 내용 업데이트
                     tooltip.html(`
+                        <div><strong>노드 유형:</strong> ${nodeType}</div>
                         <div><strong>TX Hash:</strong> ${tx.txhash.substring(0, 10)}...</div>
                         <div><strong>From:</strong> ${shortenAddress(tx.fromAddress)}</div>
                         <div><strong>To:</strong> ${shortenAddress(tx.toAddress)}</div>
@@ -269,7 +311,7 @@ const StoryLineChart = ({ transactions, selectedAddress }) => {
                 .on("mouseout", function() {
                     // 노드 원래 상태로
                     d3.select(this).select(".tx-node")
-                        .attr("opacity", isSelectedFromNode ? 1 : 0.7);
+                        .attr("opacity", isCurrentNodeFrom ? 1 : 0.8);
 
                     // 툴팁 숨기기 애니메이션
                     tooltip.transition()
@@ -277,30 +319,57 @@ const StoryLineChart = ({ transactions, selectedAddress }) => {
                         .style("opacity", 0);
                 });
 
-            // To 노드 (다른 체인으로 가는 경우에만)
+            // To 노드 그리기 - 체인 간 거래 또는 내부 거래
             if (tx.fromChain !== tx.toChain) {
+                // 다른 체인으로 가는 경우 수신 노드 위치
+                createToNode(x, toY);
+            } else {
+                // 같은 체인 내 거래인 경우 수신 노드 위치 (발신 노드 옆)
+                createToNode(x + 15, fromY);
+            }
+
+            // 수신 노드 생성 함수
+            function createToNode(nodeX, nodeY) {
                 const toNodeGroup = svg.append("g")
                     .attr("class", "tx-node-group")
-                    .attr("transform", `translate(${x},${toY})`);
+                    .attr("transform", `translate(${nodeX},${nodeY})`);
 
-                // 클릭한 노드인 경우 강조를 위한 외부 원 추가
-                if (isSelectedToNode) {
-                    toNodeGroup.append("circle")
-                        .attr("r", nodeRadius + 4)
-                        .attr("fill", "none")
-                        .attr("stroke", "#4CAF50")
-                        .attr("stroke-width", 2)
-                        .attr("stroke-dasharray", "3,2");
+                // 노드 색상 및 스타일 설정
+                let toStrokeColor = "#4CAF50";   // 수신 노드 기본 색상
+                let toDashArray = null;          // 대시 패턴
+
+                // 내부 거래인 경우 색상 변경
+                if (isInternalTx) {
+                    toStrokeColor = "#9C27B0"; // 내부 거래는 보라색
                 }
+
+                // 현재 노드인 경우 표시
+                if (isCurrentNodeTo) {
+                    toDashArray = "3,2";
+                    toNodeGroup.append("circle")
+                        .attr("r", nodeRadius + 5)
+                        .attr("fill", "none")
+                        .attr("stroke", "#2196F3") // 현재 노드는 파란색
+                        .attr("stroke-width", 2)
+                        .attr("stroke-dasharray", "2,1");
+                }
+
+                // 노드 외곽선 추가 (수신 노드)
+                toNodeGroup.append("circle")
+                    .attr("r", nodeRadius + 2)
+                    .attr("fill", "none")
+                    .attr("stroke", toStrokeColor)
+                    .attr("stroke-width", 1.5)
+                    .attr("stroke-dasharray", toDashArray);
 
                 // 실제 노드
                 toNodeGroup.append("circle")
-                    .attr("class", `tx-node ${nodeClass}`)
+                    .attr("class", `tx-node ${toNodeClass}`)
                     .attr("r", nodeRadius)
                     .attr("fill", getChainColor(tx.toChain))
-                    .attr("stroke", isSelectedToNode ? "#4CAF50" : "#fff")
-                    .attr("stroke-width", isSelectedToNode ? 2 : 1)
-                    .attr("opacity", isSelectedToNode ? 1 : 0.7);
+                    .attr("stroke", "#fff")
+                    .attr("stroke-width", 0.5)
+                    .attr("opacity", isCurrentNodeTo ? 1 : 0.8);
 
                 // 이벤트를 그룹에 바인딩
                 toNodeGroup
@@ -308,8 +377,14 @@ const StoryLineChart = ({ transactions, selectedAddress }) => {
                         // 노드 강조
                         d3.select(this).select(".tx-node").attr("opacity", 1);
 
+                        // 노드 유형 결정
+                        let nodeType = "수신 노드";
+                        if (isInternalTx) nodeType += " (내부 거래)";
+                        if (isCurrentNodeTo) nodeType += " (현재 노드)";
+
                         // 툴팁 내용 업데이트
                         tooltip.html(`
+                            <div><strong>노드 유형:</strong> ${nodeType}</div>
                             <div><strong>TX Hash:</strong> ${tx.txhash.substring(0, 10)}...</div>
                             <div><strong>From:</strong> ${shortenAddress(tx.fromAddress)}</div>
                             <div><strong>To:</strong> ${shortenAddress(tx.toAddress)}</div>
@@ -329,7 +404,7 @@ const StoryLineChart = ({ transactions, selectedAddress }) => {
                     .on("mouseout", function() {
                         // 노드 원래 상태로
                         d3.select(this).select(".tx-node")
-                            .attr("opacity", isSelectedToNode ? 1 : 0.7);
+                            .attr("opacity", isCurrentNodeTo ? 1 : 0.8);
 
                         // 툴팁 숨기기 애니메이션
                         tooltip.transition()
@@ -337,6 +412,53 @@ const StoryLineChart = ({ transactions, selectedAddress }) => {
                             .style("opacity", 0);
                     });
             }
+        });
+
+        // 레전드 추가
+        const legendGroup = svg.append("g")
+            .attr("transform", `translate(${width - 240}, -35)`);
+
+        // 노드 유형 범례
+        const legendData = [
+            { label: "발신 노드", color: "#FF5722", dash: null, x: 0 },
+            { label: "수신 노드", color: "#4CAF50", dash: null, x: 60 },
+            { label: "내부 거래", color: "#9C27B0", dash: null, x: 120 },
+            { label: "현재 노드", color: "#2196F3", dash: "2,1", x: 180 }
+        ];
+
+        legendData.forEach(item => {
+            const legendItem = legendGroup.append("g")
+                .attr("transform", `translate(${item.x}, 0)`);
+
+            // 외부 원 (현재 노드 표시용)
+            if (item.label === "현재 노드") {
+                legendItem.append("circle")
+                    .attr("r", 6)
+                    .attr("fill", "none")
+                    .attr("stroke", item.color)
+                    .attr("stroke-width", 2)
+                    .attr("stroke-dasharray", item.dash);
+            }
+
+            // 노드 외곽선
+            legendItem.append("circle")
+                .attr("r", item.label === "현재 노드" ? 4 : 5)
+                .attr("fill", "none")
+                .attr("stroke", item.color)
+                .attr("stroke-width", 1.5);
+
+            // 내부 원
+            legendItem.append("circle")
+                .attr("r", item.label === "현재 노드" ? 2.5 : 3.5)
+                .attr("fill", item.color);
+
+            // 라벨
+            legendItem.append("text")
+                .attr("x", 8)
+                .attr("y", 4)
+                .attr("fill", "#555")
+                .style("font-size", "9px")
+                .text(item.label);
         });
 
         // 제목
@@ -347,42 +469,6 @@ const StoryLineChart = ({ transactions, selectedAddress }) => {
             .attr("font-size", "14px")
             .attr("font-weight", "bold")
             .text("시간에 따른 체인 거래 흐름");
-
-        // 레전드 추가
-        const legendGroup = svg.append("g")
-            .attr("transform", `translate(${width - 150}, -35)`);
-
-        // 선택된 노드 표시 - 범례
-        const legendData = [
-            { label: "발신 노드", color: "#FF5722", dash: "3,2", x: 0 },
-            { label: "수신 노드", color: "#4CAF50", dash: "3,2", x: 80 }
-        ];
-
-        legendData.forEach(item => {
-            const legendItem = legendGroup.append("g")
-                .attr("transform", `translate(${item.x}, 0)`);
-
-            // 외부 원
-            legendItem.append("circle")
-                .attr("r", 6)
-                .attr("fill", "none")
-                .attr("stroke", item.color)
-                .attr("stroke-width", 2)
-                .attr("stroke-dasharray", item.dash);
-
-            // 내부 원
-            legendItem.append("circle")
-                .attr("r", 4)
-                .attr("fill", item.color);
-
-            // 라벨
-            legendItem.append("text")
-                .attr("x", 10)
-                .attr("y", 4)
-                .attr("fill", "#6c757d")
-                .style("font-size", "10px")
-                .text(item.label);
-        });
 
         // Clean up
         return () => {

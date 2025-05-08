@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './BottomSheet.css';
 import SankeyChart from '../SankeyChart/SankeyChart';
-import StoryLineChart from '../StoryLineChart/StoryLineChart'; // 추가된 부분
+import StoryLineChart from '../StoryLineChart/StoryLineChart'; // StoryLineChart 컴포넌트 import
 import { shortenAddress, getAddressName } from '../../utils/dataUtils';
 import { fetchAddressDetail, fetchAddressTransactions } from '../../services/api';
 import { tierConfig } from '../../constants/tierConfig';
@@ -234,7 +234,7 @@ const BottomSheet = ({ isOpen, onClose, selectedNode, allTransactions, addressDa
                                 <h4>거래 흐름 다이어그램</h4>
                                 <SankeyChart
                                     transactions={allTransactions}
-                                    selectedAddress={selectedNode?.id}
+                                    selectedAddress={selectedNode?.id || selectedNode?.address}
                                     addressData={addressData}
                                 />
                             </div>
