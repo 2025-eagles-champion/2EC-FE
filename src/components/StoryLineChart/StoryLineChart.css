@@ -1,0 +1,64 @@
+/* src/components/StoryLineChart/StoryLineChart.css */
+.storyline-chart-container {
+    width: 100%;
+    height: 300px;
+    padding: 10px;
+    box-sizing: border-box;
+    background-color: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    margin-top: 20px;
+    margin-bottom: 20px;
+}
+
+.storyline-chart {
+    width: 100%;
+    height: 100%;
+}
+
+.tx-node-group {
+    cursor: pointer;
+}
+
+.tx-node {
+    transition: opacity 0.2s, r 0.2s;
+}
+
+.tx-node-group:hover .tx-node {
+    filter: brightness(1.2);
+}
+
+/* 선택된 노드 스타일 */
+.selected-node {
+    stroke-width: 3px;
+    filter: drop-shadow(0 0 3px rgba(0,0,0,0.3));
+}
+
+/* 노드 유형별 스타일 */
+.outgoing-tx {
+    stroke: #ff5722;
+}
+
+.incoming-tx {
+    stroke: #4caf50;
+}
+
+.storyline-tooltip {
+    line-height: 1.4;
+    pointer-events: none !important;
+    transition: opacity 0.2s;
+}
+
+.storyline-tooltip div {
+    margin: 3px 0;
+    white-space: nowrap;
+}
+
+.x-axis text, .y-axis text {
+    font-size: 11px;
+}
+
+.x-label, .y-label {
+    font-size: 12px;
+    fill: #6c757d;
+}
