@@ -256,7 +256,7 @@ const NetworkGraph = ({
             .data(graphData.links)
             .enter()
             .append("line")
-            .attr("stroke-width", (d) => Math.sqrt(d.value) * 0.5)
+            .attr("stroke-width", (d) => Math.log(d.value + 1) * 0.5)
             .attr("stroke", (d) => {
                 // 객체 참조 또는 문자열 ID일 수 있으므로 안전하게 처리
                 const sourceId =
