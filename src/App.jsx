@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
 import NetworkGraph from "./components/NetworkGraph/NetworkGraph";
 import NavigationBar from "./components/NavigationBar/NavigationBar";
 import BottomSheet from "./components/BottomSheet/BottomSheet";
-import DateRangePicker from "./components/DateRangePicker/DateRangePicker";
 import "./App.css";
+import axios from "axios";
 
 function App() {
     // 상태 관리
@@ -30,6 +29,7 @@ function App() {
 
     // 노드 데이터 로드 함수
     const loadData = async (filters = {}) => {
+        console.log("loadData 함수 호출됨", { dateRange, batchWeight, txCountWeight, txAmountWeight });
         setLoading(true);
         setLoadingProgress(10); // 초기 진행률
 
@@ -45,13 +45,10 @@ function App() {
                 ...filters,
             };
 
+            console.log("API 요청 데이터:", requestData);
             setLoadingProgress(30); // API 호출 시작
 
-            // API 호출
-            const response = await axios.post(
-                `${API_URL}/get_nodes`,
-                requestData
-            );
+            const response = await axios.post(`${API_URL}/get_nodes`, requestData);
             const data = response.data;
 
             setLoadingProgress(70); // 데이터 수신 완료
@@ -65,8 +62,6 @@ function App() {
                 ...data.top_nodes_derived_json,
                 ...data.related_nodes_derived_json,
             ];
-
-            console.log("allAddressData", allAddressData);
 
             // 주소 ID 매핑 (고유 식별자 설정)
             const processedAddressData = allAddressData.map((addr) => ({
@@ -84,8 +79,6 @@ function App() {
                 sent_tx_amount: addr.sent_tx_amount || 0,
                 recv_tx_amount: addr.recv_tx_amount || 0,
             }));
-
-            console.log("processedAddressData", processedAddressData);
 
             setTransactions(allTransactions);
             setAddressData(processedAddressData);
@@ -106,6 +99,7 @@ function App() {
 
     // 필터 변경 시 데이터 다시 로드
     const handleFilterApply = () => {
+        console.log("필터 적용 버튼 클릭: API 호출 시작");
         loadData();
     };
 
@@ -186,13 +180,6 @@ function App() {
         <div className="app">
             <div className="header">
                 <h1>블록체인 트랜잭션 시각화</h1>
-                <DateRangePicker
-                    dateRange={dateRange}
-                    onDateRangeChange={handleDateRangeChange}
-                />
-                <button className="apply-button" onClick={handleFilterApply}>
-                    필터 적용
-                </button>
             </div>
             <div className="main-content">
                 <div className="graph-container">
@@ -217,6 +204,9 @@ function App() {
                             txCountWeight,
                             txAmountWeight,
                         }}
+                        dateRange={dateRange}
+                        onDateRangeChange={handleDateRangeChange}
+                        onFilterApply={handleFilterApply}
                     />
                 </div>
             </div>

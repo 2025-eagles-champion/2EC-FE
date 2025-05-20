@@ -47,7 +47,7 @@ const DateRangePicker = ({ dateRange, onDateRangeChange }) => {
     return (
         <div className="date-range-picker">
             <div className="date-input-group">
-                <label htmlFor="start-date">시작 날짜:</label>
+                <label htmlFor="start-date">시작 날짜</label>
                 <input
                     id="start-date"
                     type="date"
@@ -58,7 +58,7 @@ const DateRangePicker = ({ dateRange, onDateRangeChange }) => {
                 />
             </div>
             <div className="date-input-group">
-                <label htmlFor="end-date">종료 날짜:</label>
+                <label htmlFor="end-date">종료 날짜</label>
                 <input
                     id="end-date"
                     type="date"

@@ -1,13 +1,14 @@
+/* src/components/DateRangePicker/DateRangePicker.css */
 .date-range-picker {
     display: flex;
-    gap: 16px;
+    flex-direction: column;
+    gap: 12px;
     margin-bottom: 16px;
-    align-items: center;
 }
 
 .date-input-group {
     display: flex;
-    align-items: center;
+    flex-direction: column;
     gap: 8px;
 }
 
@@ -25,6 +26,7 @@
     background-color: var(--color-background-light);
     font-size: 14px;
     transition: border-color 0.2s;
+    width: 100%;
 }
 
 .date-input-group input:focus {
@@ -33,24 +35,7 @@
     box-shadow: 0 0 0 2px rgba(77, 171, 247, 0.2);
 }
 
-/* 헤더 스타일 */
-.header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px 24px;
-    background-color: var(--color-background-light);
-    border-bottom: 1px solid var(--color-border);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-}
-
-.header h1 {
-    margin: 0;
-    font-size: 18px;
-    color: var(--color-text);
-}
-
-/* 필터 적용 버튼 */
+/* 필터 적용 버튼 스타일 */
 .apply-button {
     padding: 8px 16px;
     background-color: var(--color-primary);
@@ -60,6 +45,7 @@
     font-weight: 500;
     cursor: pointer;
     transition: background-color 0.2s;
+    margin-top: 8px;
 }
 
 .apply-button:hover {
@@ -68,4 +54,18 @@
 
 .apply-button:active {
     transform: translateY(1px);
+}
+
+/* 날짜 선택기 섹션 스타일 */
+.date-picker-section {
+    border-top: 1px solid var(--color-border);
+    padding-top: 16px;
+    margin-top: 16px;
+}
+
+.date-picker-section h4 {
+    margin-top: 0;
+    margin-bottom: 12px;
+    color: var(--color-text);
+    font-size: 1rem;
 }

@@ -1,17 +1,20 @@
 // src/components/NavigationBar/NavigationBar.jsx
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import Slider from "./Slider";
 import NodeList from "./NodeList";
+import DateRangePicker from "../DateRangePicker/DateRangePicker";
 import "./NavigationBar.css";
-import { fetchAddressData } from "../../services/api";
 import { getTopKNodes } from "../../utils/dataUtils";
 
 const NavigationBar = ({
-    addressData,
-    onNodeSelect,
-    onFilterChange,
-    weights,
-}) => {
+                           addressData,
+                           onNodeSelect,
+                           onFilterChange,
+                           weights,
+                           dateRange,
+                           onDateRangeChange,
+                           onFilterApply
+                       }) => {
     // App.jsx에서 받은 weights 사용
     const { batchWeight, txCountWeight, txAmountWeight } = weights || {
         batchWeight: 50,
@@ -113,12 +116,33 @@ const NavigationBar = ({
                         onChange={handleTxAmountWeightChange}
                     />
                 </div>
+
+                {/* DateRangePicker 추가 */}
+                <div className="date-picker-section">
+                    <h4>날짜 범위 설정</h4>
+                    <DateRangePicker
+                        dateRange={dateRange}
+                        onDateRangeChange={onDateRangeChange}
+                    />
+                    <button
+                        className="apply-button"
+                        onClick={() => {
+                            console.log("NavigationBar: 필터 적용 버튼 클릭");
+                            if (typeof onFilterApply === 'function') {
+                                onFilterApply();
+                            } else {
+                                console.error("onFilterApply is not a function", onFilterApply);
+                            }
+                        }}
+                    >
+                        필터 적용
+                    </button>
+                </div>
             </div>
             <div className="nodes-section">
                 <h3>Top10 노드 목록 ({topNodes?.length || 0}개)</h3>
                 {loading ? (
-                    // <div className="loading">노드 목록 로딩 중...</div>
-                    <></>
+                    <div className="loading">노드 목록 로딩 중...</div>
                 ) : (
                     <div className="node-list-container">
                         <NodeList
