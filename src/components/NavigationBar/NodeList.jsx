@@ -1,94 +1,100 @@
 // src/components/NavigationBar/NodeList.jsx
-import React, { useEffect } from 'react';
-import './NodeList.css';
-import { shortenAddress, getAddressName } from '../../utils/dataUtils';
-import { getChainColor, getTierColor } from '../../utils/colorUtils';
-import { tierConfig } from '../../constants/tierConfig';
+import React from "react";
+import "./NodeList.css";
+import { shortenAddress } from "../../utils/dataUtils";
+import { getChainColor, getTierColor } from "../../utils/colorUtils";
 
-const NodeList = ({ nodes, onNodeSelect }) => {
+const NodeList = ({ addressData, topNodes, loading, onNodeSelect }) => {
     // 체인 이름 추출 함수 (주소에서 안전하게 체인 이름 추출)
     const extractChainName = (address) => {
-        if (!address || typeof address !== 'string') return 'unknown';
-
+        if (!address || typeof address !== "string") return "unknown";
         try {
-            if (address.includes('1')) {
-                return address.split('1')[0];
+            if (address.includes("1")) {
+                return address.split("1")[0];
             }
-            return 'unknown';
+            return "unknown";
         } catch (e) {
-            console.warn('Error extracting chain name:', e);
-            return 'unknown';
+            console.warn("Error extracting chain name:", e);
+            return "unknown";
         }
     };
 
-    // 디버깅용 로그
-    useEffect(() => {
-        console.log("NodeList received nodes:", nodes);
-    }, [nodes]);
-
-    // 렌더링 로직 분리 - 안전하게 처리
+    // 노드 목록 렌더링
     const renderNodes = () => {
-        if (!nodes || !Array.isArray(nodes) || nodes.length === 0) {
-            return <div className="no-nodes">노드가 없습니다</div>;
+        // topNodes가 있으면 그것을 사용하고, 없으면 addressData에서 상위 노드 추출
+        const nodesToRender =
+            topNodes && topNodes.length > 0
+                ? topNodes
+                : addressData && addressData.length > 0
+                ? [...addressData]
+                      .sort((a, b) => {
+                          const scoreA =
+                              a.final_score !== undefined
+                                  ? a.final_score
+                                  : a.pagerank || 0;
+                          const scoreB =
+                              b.final_score !== undefined
+                                  ? b.final_score
+                                  : b.pagerank || 0;
+                          return scoreB - scoreA;
+                      })
+                      .slice(0, 20)
+                : [];
+
+        if (nodesToRender.length === 0) {
+            return <div className="no-nodes">표시할 노드가 없습니다.</div>;
         }
 
-        console.log("Rendering NodeList with", nodes.length, "nodes");
-
-        const validNodes = nodes.filter(node => node && (node.address || node.id));
-
-        if (validNodes.length === 0) {
-            return <div className="no-nodes">유효한 노드가 없습니다</div>;
-        }
-
-        return (
-            <ul>
-                {validNodes.map((node, index) => {
-                    // 주소 확인 (address 또는 id 필드 사용)
-                    const nodeId = node.address || node.id;
-                    if (!nodeId) {
-                        console.warn("Node has no identifier:", node);
-                        return null;
-                    }
-
-                    const chainName = node.chain || extractChainName(nodeId);
-
-                    // 노드 이름 계산 - 체인명 + UUID 앞 4자리 형식
-                    const displayName = node.name || getAddressName(nodeId);
-
-                    return (
-                        <li key={nodeId} onClick={() => onNodeSelect(node)}>
-                            <div className="node-rank">{index + 1}</div>
-                            <div className="node-color" style={{ backgroundColor: getChainColor(chainName) }}></div>
-                            <div className="node-info">
-                                <div className="node-address">{displayName}</div>
-                                <div className="node-details">
-                                    <span className="node-chain">{chainName}</span>
-                                    <span className="node-tier" style={{ color: getTierColor(node.tier) }}>
-                                        {tierConfig[node.tier]?.label || '브론즈'}
-                                    </span>
-                                </div>
-                            </div>
-                            <div className="node-stats">
-                                <div className="stat">
-                                    <span className="stat-label">전송:</span>
-                                    <span className="stat-value">{node.sent_tx_count || 0}</span>
-                                </div>
-                                <div className="stat">
-                                    <span className="stat-label">수신:</span>
-                                    <span className="stat-value">{node.recv_tx_count || 0}</span>
-                                </div>
-                            </div>
-                        </li>
-                    );
-                })}
-            </ul>
-        );
+        return nodesToRender.map((node) => (
+            <div
+                key={node.id || node.address}
+                className="node-item"
+                onClick={() => onNodeSelect(node)}
+            >
+                <div
+                    className="node-icon"
+                    style={{
+                        backgroundColor: getChainColor(
+                            node.chain ||
+                                extractChainName(node.address || node.id)
+                        ),
+                    }}
+                ></div>
+                <div className="node-info">
+                    <div className="node-name">
+                        {node.name ||
+                            shortenAddress(node.address || node.id, 5, 4)}
+                    </div>
+                </div>
+                <div className="node-stats">
+                    <div>
+                        거래 횟수:{" "}
+                        {(node.sent_tx_count || 0) + (node.recv_tx_count || 0)}
+                    </div>
+                    <div>
+                        거래량:{" "}
+                        {(
+                            (node.sent_tx_amount || 0) +
+                            (node.recv_tx_amount || 0)
+                        ).toFixed(2)}
+                    </div>
+                </div>
+            </div>
+        ));
     };
 
-    // 메인 렌더링
     return (
-        <div className="node-list" data-testid="node-list">
-            {renderNodes()}
+        <div className="node-list-container">
+            <h3>주요 노드 목록</h3>
+            <div className="node-list">
+                {loading ? (
+                    <div className="loading-indicator">
+                        데이터를 불러오는 중...
+                    </div>
+                ) : (
+                    renderNodes()
+                )}
+            </div>
         </div>
     );
 };
