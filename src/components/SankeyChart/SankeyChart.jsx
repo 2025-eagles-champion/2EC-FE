@@ -1,10 +1,10 @@
 // src/components/SankeyChart/SankeyChart.jsx
-import React, { useEffect, useRef, useMemo } from 'react';
-import * as d3 from 'd3';
-import { sankey, sankeyLinkHorizontal } from 'd3-sankey';
-import './SankeyChart.css';
-import { getChainColor, getTierColor } from '../../utils/colorUtils';
-import { shortenAddress } from '../../utils/dataUtils';
+import React, { useEffect, useRef, useMemo } from "react";
+import * as d3 from "d3";
+import { sankey, sankeyLinkHorizontal } from "d3-sankey";
+import "./SankeyChart.css";
+import { getChainColor, getTierColor } from "../../utils/colorUtils";
+import { shortenAddress } from "../../utils/dataUtils";
 
 const SankeyChart = ({ transactions, selectedAddress, addressData }) => {
     const svgRef = useRef(null);
@@ -16,63 +16,86 @@ const SankeyChart = ({ transactions, selectedAddress, addressData }) => {
         }
 
         // 관련 트랜잭션 필터링 및 깊이 계산
-        const relevantTxs = transactions.filter(tx => {
+        const relevantTxs = transactions.filter((tx) => {
             // 선택된 노드와 직접 관련된 거래만 포함
-            return tx.fromAddress === selectedAddress || tx.toAddress === selectedAddress;
+            return (
+                tx.fromAddress === selectedAddress ||
+                tx.toAddress === selectedAddress
+            );
         });
 
         // 주소 맵 생성 (고유한 노드 구성)
         const nodeMap = new Map();
 
         // 선택된 노드를 중심으로 2-depth 노드들 식별
-        const selectedNode = addressData.find(addr => addr.address === selectedAddress || addr.id === selectedAddress);
+        const selectedNode = addressData.find(
+            (addr) =>
+                addr.address === selectedAddress || addr.id === selectedAddress
+        );
 
         // 먼저 중심 노드 추가
         if (selectedNode) {
             nodeMap.set(selectedAddress, {
                 id: selectedAddress,
                 name: shortenAddress(selectedAddress, 5, 4),
-                chain: selectedNode.chain || selectedAddress.split('1')[0] || 'unknown',
-                depth: 0,  // 중심 노드
-                tier: selectedNode.tier || 'bronze'
+                chain:
+                    selectedNode.chain ||
+                    selectedAddress.split("1")[0] ||
+                    "unknown",
+                depth: 0, // 중심 노드
+                tier: selectedNode.tier || "bronze",
             });
         } else {
             // 중심 노드 정보가 없을 경우 기본값으로 설정
             nodeMap.set(selectedAddress, {
                 id: selectedAddress,
                 name: shortenAddress(selectedAddress, 5, 4),
-                chain: selectedAddress.split('1')[0] || 'unknown',
+                chain: selectedAddress.split("1")[0] || "unknown",
                 depth: 0,
-                tier: 'bronze'
+                tier: "bronze",
             });
         }
 
         // 1-depth 수신/발신 노드 추가
-        relevantTxs.forEach(tx => {
+        relevantTxs.forEach((tx) => {
             if (tx.fromAddress === selectedAddress) {
                 // 발신 노드인 경우 수신자를 1-depth로 추가
                 if (!nodeMap.has(tx.toAddress)) {
-                    const node = addressData.find(addr => addr.address === tx.toAddress || addr.id === tx.toAddress);
+                    const node = addressData.find(
+                        (addr) =>
+                            addr.address === tx.toAddress ||
+                            addr.id === tx.toAddress
+                    );
                     nodeMap.set(tx.toAddress, {
                         id: tx.toAddress,
                         name: shortenAddress(tx.toAddress, 5, 4),
-                        chain: tx.toChain || tx.toAddress.split('1')[0] || 'unknown',
-                        depth: 1,  // 1-depth
-                        tier: node?.tier || 'bronze',
-                        direction: 'out'  // 중심 노드에서 나가는 방향
+                        chain:
+                            tx.toChain ||
+                            tx.toAddress.split("1")[0] ||
+                            "unknown",
+                        depth: 1, // 1-depth
+                        tier: node?.tier || "bronze",
+                        direction: "out", // 중심 노드에서 나가는 방향
                     });
                 }
             } else if (tx.toAddress === selectedAddress) {
                 // 수신 노드인 경우 발신자를 1-depth로 추가
                 if (!nodeMap.has(tx.fromAddress)) {
-                    const node = addressData.find(addr => addr.address === tx.fromAddress || addr.id === tx.fromAddress);
+                    const node = addressData.find(
+                        (addr) =>
+                            addr.address === tx.fromAddress ||
+                            addr.id === tx.fromAddress
+                    );
                     nodeMap.set(tx.fromAddress, {
                         id: tx.fromAddress,
                         name: shortenAddress(tx.fromAddress, 5, 4),
-                        chain: tx.fromChain || tx.fromAddress.split('1')[0] || 'unknown',
-                        depth: 1,  // 1-depth
-                        tier: node?.tier || 'bronze',
-                        direction: 'in'  // 중심 노드로 들어오는 방향
+                        chain:
+                            tx.fromChain ||
+                            tx.fromAddress.split("1")[0] ||
+                            "unknown",
+                        depth: 1, // 1-depth
+                        tier: node?.tier || "bronze",
+                        direction: "in", // 중심 노드로 들어오는 방향
                     });
                 }
             }
@@ -81,31 +104,46 @@ const SankeyChart = ({ transactions, selectedAddress, addressData }) => {
         // 2-depth 노드 추가
         // 1-depth 노드들의 관련 거래 확인
         const depth1Addresses = Array.from(nodeMap.values())
-            .filter(node => node.depth === 1)
-            .map(node => node.id);
+            .filter((node) => node.depth === 1)
+            .map((node) => node.id);
 
         // 2-depth 노드 추가를 위한 추가 트랜잭션 필터링
-        const depth2Txs = transactions.filter(tx =>
-            (depth1Addresses.includes(tx.fromAddress) && tx.toAddress !== selectedAddress) ||
-            (depth1Addresses.includes(tx.toAddress) && tx.fromAddress !== selectedAddress)
+        const depth2Txs = transactions.filter(
+            (tx) =>
+                (depth1Addresses.includes(tx.fromAddress) &&
+                    tx.toAddress !== selectedAddress) ||
+                (depth1Addresses.includes(tx.toAddress) &&
+                    tx.fromAddress !== selectedAddress)
         );
 
         // 2-depth 노드 추가 (상위 20개만 추가)
         const depth2Counter = new Map(); // 거래량 집계
 
-        depth2Txs.forEach(tx => {
+        depth2Txs.forEach((tx) => {
             // 1-depth 노드에서 발신하는 거래
-            if (depth1Addresses.includes(tx.fromAddress) && tx.toAddress !== selectedAddress) {
+            if (
+                depth1Addresses.includes(tx.fromAddress) &&
+                tx.toAddress !== selectedAddress
+            ) {
                 if (!nodeMap.has(tx.toAddress)) {
                     const amount = tx.amount || 0;
-                    depth2Counter.set(tx.toAddress, (depth2Counter.get(tx.toAddress) || 0) + amount);
+                    depth2Counter.set(
+                        tx.toAddress,
+                        (depth2Counter.get(tx.toAddress) || 0) + amount
+                    );
                 }
             }
             // 1-depth 노드로 수신되는 거래
-            else if (depth1Addresses.includes(tx.toAddress) && tx.fromAddress !== selectedAddress) {
+            else if (
+                depth1Addresses.includes(tx.toAddress) &&
+                tx.fromAddress !== selectedAddress
+            ) {
                 if (!nodeMap.has(tx.fromAddress)) {
                     const amount = tx.amount || 0;
-                    depth2Counter.set(tx.fromAddress, (depth2Counter.get(tx.fromAddress) || 0) + amount);
+                    depth2Counter.set(
+                        tx.fromAddress,
+                        (depth2Counter.get(tx.fromAddress) || 0) + amount
+                    );
                 }
             }
         });
@@ -117,22 +155,28 @@ const SankeyChart = ({ transactions, selectedAddress, addressData }) => {
 
         top2DepthNodes.forEach(([address, amount]) => {
             // 해당 주소 관련 거래 찾기
-            const relatedTx = depth2Txs.find(tx =>
-                tx.fromAddress === address || tx.toAddress === address
+            const relatedTx = depth2Txs.find(
+                (tx) => tx.fromAddress === address || tx.toAddress === address
             );
 
             if (relatedTx) {
                 const isSource = relatedTx.fromAddress === address;
-                const node = addressData.find(addr => addr.address === address || addr.id === address);
+                const node = addressData.find(
+                    (addr) => addr.address === address || addr.id === address
+                );
 
                 nodeMap.set(address, {
                     id: address,
                     name: shortenAddress(address, 4, 3),
-                    chain: isSource ? relatedTx.fromChain : relatedTx.toChain || address.split('1')[0] || 'unknown',
-                    depth: 2,  // 2-depth
-                    tier: node?.tier || 'bronze',
-                    direction: isSource ? 'in' : 'out',  // 중심 노드 기준 방향
-                    amount: amount  // 집계된 거래량
+                    chain: isSource
+                        ? relatedTx.fromChain
+                        : relatedTx.toChain ||
+                          address.split("1")[0] ||
+                          "unknown",
+                    depth: 2, // 2-depth
+                    tier: node?.tier || "bronze",
+                    direction: isSource ? "in" : "out", // 중심 노드 기준 방향
+                    amount: amount, // 집계된 거래량
                 });
             }
         });
@@ -141,33 +185,39 @@ const SankeyChart = ({ transactions, selectedAddress, addressData }) => {
         const links = [];
 
         // 중심 노드와 1-depth 노드 간 링크
-        relevantTxs.forEach(tx => {
-            if (tx.fromAddress === selectedAddress && nodeMap.has(tx.toAddress)) {
+        relevantTxs.forEach((tx) => {
+            if (
+                tx.fromAddress === selectedAddress &&
+                nodeMap.has(tx.toAddress)
+            ) {
                 links.push({
                     source: tx.fromAddress,
                     target: tx.toAddress,
                     value: tx.amount || 1,
-                    denom: tx.dpDenom || tx.denom || ''
+                    denom: tx.dpDenom || tx.denom || "",
                 });
-            } else if (tx.toAddress === selectedAddress && nodeMap.has(tx.fromAddress)) {
+            } else if (
+                tx.toAddress === selectedAddress &&
+                nodeMap.has(tx.fromAddress)
+            ) {
                 links.push({
                     source: tx.fromAddress,
                     target: tx.toAddress,
                     value: tx.amount || 1,
-                    denom: tx.dpDenom || tx.denom || ''
+                    denom: tx.dpDenom || tx.denom || "",
                 });
             }
         });
 
         // 1-depth와 2-depth 노드 간 링크
-        depth2Txs.forEach(tx => {
+        depth2Txs.forEach((tx) => {
             if (nodeMap.has(tx.fromAddress) && nodeMap.has(tx.toAddress)) {
                 // 이미 추가된 노드들 간의 링크만 추가
                 links.push({
                     source: tx.fromAddress,
                     target: tx.toAddress,
                     value: tx.amount || 1,
-                    denom: tx.dpDenom || tx.denom || ''
+                    denom: tx.dpDenom || tx.denom || "",
                 });
             }
         });
@@ -176,7 +226,7 @@ const SankeyChart = ({ transactions, selectedAddress, addressData }) => {
         const aggregatedLinks = [];
         const linkMap = new Map();
 
-        links.forEach(link => {
+        links.forEach((link) => {
             const linkId = `${link.source}-${link.target}`;
             if (linkMap.has(linkId)) {
                 linkMap.get(linkId).value += link.value;
@@ -190,7 +240,7 @@ const SankeyChart = ({ transactions, selectedAddress, addressData }) => {
 
         return {
             nodes: Array.from(nodeMap.values()),
-            links: aggregatedLinks
+            links: aggregatedLinks,
         };
     }, [transactions, selectedAddress, addressData]);
 
@@ -204,12 +254,21 @@ const SankeyChart = ({ transactions, selectedAddress, addressData }) => {
         const nodeMap = new Map();
 
         // 노드 맵 생성
-        nodes.forEach(node => {
-            nodeMap.set(node.id, { ...node, level: null, visited: false, visiting: false });
+        nodes.forEach((node) => {
+            nodeMap.set(node.id, {
+                ...node,
+                level: null,
+                visited: false,
+                visiting: false,
+            });
         });
 
         // 각 노드의 깊이 수준 계산 (DFS로 사이클 감지)
-        const detectCycles = (nodeId, visited = new Set(), path = new Set()) => {
+        const detectCycles = (
+            nodeId,
+            visited = new Set(),
+            path = new Set()
+        ) => {
             if (path.has(nodeId)) {
                 return true; // 사이클 감지
             }
@@ -222,7 +281,9 @@ const SankeyChart = ({ transactions, selectedAddress, addressData }) => {
             path.add(nodeId);
 
             // 이 노드에서 출발하는 모든 링크 확인
-            const outgoingLinks = links.filter(link => link.source === nodeId);
+            const outgoingLinks = links.filter(
+                (link) => link.source === nodeId
+            );
             for (const link of outgoingLinks) {
                 if (detectCycles(link.target, visited, path)) {
                     return true;
@@ -234,7 +295,7 @@ const SankeyChart = ({ transactions, selectedAddress, addressData }) => {
         };
 
         // 사이클이 포함된 링크 제거
-        const nonCyclicLinks = links.filter(link => {
+        const nonCyclicLinks = links.filter((link) => {
             const sourceId = link.source;
             const targetId = link.target;
 
@@ -244,7 +305,7 @@ const SankeyChart = ({ transactions, selectedAddress, addressData }) => {
             }
 
             // 임시로 이 링크를 제거하고 사이클 감지
-            const tempLinks = links.filter(l => l !== link);
+            const tempLinks = links.filter((l) => l !== link);
             const hasCycle = detectCycles(targetId, new Set(), new Set());
 
             return !hasCycle;
@@ -252,7 +313,7 @@ const SankeyChart = ({ transactions, selectedAddress, addressData }) => {
 
         return {
             nodes: nodes,
-            links: nonCyclicLinks
+            links: nonCyclicLinks,
         };
     };
 
@@ -261,7 +322,10 @@ const SankeyChart = ({ transactions, selectedAddress, addressData }) => {
         if (!transactions || !selectedAddress || !svgRef.current) return;
 
         // 선택된 주소에 대한 정보 가져오기
-        const addressInfo = addressData.find(a => a.address === selectedAddress || a.id === selectedAddress) || {};
+        const addressInfo =
+            addressData.find(
+                (a) => a.address === selectedAddress || a.id === selectedAddress
+            ) || {};
 
         try {
             // 순환 참조 감지 및 제거
@@ -282,14 +346,16 @@ const SankeyChart = ({ transactions, selectedAddress, addressData }) => {
 
             // SVG 크기 설정
             const margin = { top: 20, right: 10, bottom: 20, left: 10 };
-            const width = svgRef.current.clientWidth - margin.left - margin.right;
+            const width =
+                svgRef.current.clientWidth - margin.left - margin.right;
             const height = 300 - margin.top - margin.bottom;
 
             // 기존 SVG 내용 초기화
             d3.select(svgRef.current).selectAll("*").remove();
 
             // SVG 생성
-            const svg = d3.select(svgRef.current)
+            const svg = d3
+                .select(svgRef.current)
                 .attr("width", width + margin.left + margin.right)
                 .attr("height", height + margin.top + margin.bottom)
                 .append("g")
@@ -301,16 +367,16 @@ const SankeyChart = ({ transactions, selectedAddress, addressData }) => {
                 nodeMap[node.id] = i;
             });
 
-            const sankeyLinks = links.map(link => ({
+            const sankeyLinks = links.map((link) => ({
                 source: nodeMap[link.source],
                 target: nodeMap[link.target],
-                value: Math.max(0.1, link.value) // 최소값 설정
+                value: Math.max(0.1, link.value), // 최소값 설정
             }));
 
             // 최종 데이터 준비
             const graph = {
                 nodes: nodes,
-                links: sankeyLinks
+                links: sankeyLinks,
             };
 
             // 샌키 레이아웃 적용
@@ -318,105 +384,132 @@ const SankeyChart = ({ transactions, selectedAddress, addressData }) => {
                 const sankeyGenerator = sankey()
                     .nodeWidth(15)
                     .nodePadding(10)
-                    .extent([[0, 0], [width, height]]);
+                    .extent([
+                        [0, 0],
+                        [width, height],
+                    ]);
 
-                const { nodes: layoutNodes, links: layoutLinks } = sankeyGenerator(graph);
+                const { nodes: layoutNodes, links: layoutLinks } =
+                    sankeyGenerator(graph);
 
                 // 페이지랭크 및 티어 안전하게 가져오기
-                const pageRank = addressInfo.pagerank !== undefined ? addressInfo.pagerank :
-                    addressInfo.final_score !== undefined ? addressInfo.final_score : 0.1;
-                const tier = addressInfo.tier || 'bronze';
+                const pageRank =
+                    addressInfo.pagerank !== undefined
+                        ? addressInfo.pagerank
+                        : addressInfo.final_score !== undefined
+                        ? addressInfo.final_score
+                        : 0.1;
+                const tier = addressInfo.tier || "bronze";
 
                 // 페이지랭크가 NaN이 아닌지 확인
-                const displayRank = isNaN(pageRank) ? 10 : (pageRank * 100).toFixed(1);
+                const displayRank = isNaN(pageRank)
+                    ? 10
+                    : (pageRank * 100).toFixed(1);
 
-                // 티어 정보 표시
-                svg.append("text")
-                    .attr("class", "tier-info")
-                    .attr("x", width / 2)
-                    .attr("y", -5)
-                    .attr("text-anchor", "middle")
-                    .attr("fill", getTierColor(tier))
-                    .text(`${tier.charAt(0).toUpperCase() + tier.slice(1)} 티어 (신뢰도: ${displayRank}%)`);
+                // // 티어 정보 표시
+                // svg.append("text")
+                //     .attr("class", "tier-info")
+                //     .attr("x", width / 2)
+                //     .attr("y", -5)
+                //     .attr("text-anchor", "middle")
+                //     .attr("fill", getTierColor(tier))
+                //     .text(
+                //         `${
+                //             tier.charAt(0).toUpperCase() + tier.slice(1)
+                //         } 티어 (신뢰도: ${displayRank}%)`
+                //     );
 
                 // 링크 그리기
-                const link = svg.append("g")
+                const link = svg
+                    .append("g")
                     .attr("class", "links")
                     .selectAll("path")
                     .data(layoutLinks)
-                    .enter().append("path")
+                    .enter()
+                    .append("path")
                     .attr("d", sankeyLinkHorizontal())
-                    .attr("stroke", d => {
+                    .attr("stroke", (d) => {
                         const sourceNode = nodes[d.source.index];
                         const targetNode = nodes[d.target.index];
                         return d3.interpolateRgb(
-                            getChainColor(sourceNode.chain || 'unknown'),
-                            getChainColor(targetNode.chain || 'unknown')
+                            getChainColor(sourceNode.chain || "unknown"),
+                            getChainColor(targetNode.chain || "unknown")
                         )(0.5);
                     })
-                    .attr("stroke-width", d => Math.max(1, d.width))
+                    .attr("stroke-width", (d) => Math.max(1, d.width))
                     .attr("opacity", 0.7)
                     .style("fill", "none")
                     .sort((a, b) => b.width - a.width);
 
                 // 링크 호버 툴팁
-                link.append("title")
-                    .text(d => {
-                        const sourceNode = nodes[d.source.index];
-                        const targetNode = nodes[d.target.index];
-                        return `${sourceNode.name} → ${targetNode.name}\n${d.value.toFixed(4)}`;
-                    });
+                link.append("title").text((d) => {
+                    const sourceNode = nodes[d.source.index];
+                    const targetNode = nodes[d.target.index];
+                    return `${sourceNode.name} → ${
+                        targetNode.name
+                    }\n${d.value.toFixed(4)}`;
+                });
 
                 // 노드 그리기
-                const node = svg.append("g")
+                const node = svg
+                    .append("g")
                     .attr("class", "nodes")
                     .selectAll("rect")
                     .data(layoutNodes)
-                    .enter().append("rect")
-                    .attr("x", d => d.x0)
-                    .attr("y", d => d.y0)
-                    .attr("height", d => Math.max(1, d.y1 - d.y0))
-                    .attr("width", d => d.x1 - d.x0)
-                    .attr("fill", d => getChainColor(d.chain || 'unknown'))
+                    .enter()
+                    .append("rect")
+                    .attr("x", (d) => d.x0)
+                    .attr("y", (d) => d.y0)
+                    .attr("height", (d) => Math.max(1, d.y1 - d.y0))
+                    .attr("width", (d) => d.x1 - d.x0)
+                    .attr("fill", (d) => getChainColor(d.chain || "unknown"))
                     .attr("stroke", "#333")
                     .attr("stroke-opacity", 0.2);
 
                 // 노드 호버 툴팁
-                node.append("title")
-                    .text(d => `${d.name} (${d.chain || 'unknown'})`);
+                node.append("title").text(
+                    (d) => `${d.name} (${d.chain || "unknown"})`
+                );
 
                 // 노드 레이블
                 svg.append("g")
                     .attr("class", "node-labels")
                     .selectAll("text")
                     .data(layoutNodes)
-                    .enter().append("text")
-                    .attr("x", d => d.x0 < width / 2 ? d.x1 + 6 : d.x0 - 6)
-                    .attr("y", d => (d.y1 + d.y0) / 2)
+                    .enter()
+                    .append("text")
+                    .attr("x", (d) => (d.x0 < width / 2 ? d.x1 + 6 : d.x0 - 6))
+                    .attr("y", (d) => (d.y1 + d.y0) / 2)
                     .attr("dy", "0.35em")
-                    .attr("text-anchor", d => d.x0 < width / 2 ? "start" : "end")
-                    .text(d => d.name)
+                    .attr("text-anchor", (d) =>
+                        d.x0 < width / 2 ? "start" : "end"
+                    )
+                    .text((d) => d.name)
                     .attr("font-size", "10px");
 
                 // 선택된 노드 강조
-                node.filter(d => d.id === selectedAddress)
+                node.filter((d) => d.id === selectedAddress)
                     .attr("stroke", "#ff0000")
                     .attr("stroke-width", 2)
                     .attr("stroke-opacity", 1);
 
                 // 깊이에 따른 배경 구분
-                const depthColors = ["rgba(0,0,0,0.05)", "rgba(0,0,0,0.03)", "rgba(0,0,0,0.01)"];
+                const depthColors = [
+                    "rgba(0,0,0,0.05)",
+                    "rgba(0,0,0,0.03)",
+                    "rgba(0,0,0,0.01)",
+                ];
 
                 // 깊이별 배경 영역 추가
-                const maxDepth = Math.max(...nodes.map(d => d.depth));
+                const maxDepth = Math.max(...nodes.map((d) => d.depth));
                 for (let i = 0; i <= maxDepth; i++) {
                     // 각 깊이별 노드 그룹 찾기
-                    const depthNodes = layoutNodes.filter(d => d.depth === i);
+                    const depthNodes = layoutNodes.filter((d) => d.depth === i);
                     if (depthNodes.length === 0) continue;
 
                     // 영역 계산
-                    const minX = d3.min(depthNodes, d => d.x0);
-                    const maxX = d3.max(depthNodes, d => d.x1);
+                    const minX = d3.min(depthNodes, (d) => d.x0);
+                    const maxX = d3.max(depthNodes, (d) => d.x1);
 
                     // 배경 영역 추가
                     svg.insert("rect", ":first-child")
@@ -431,15 +524,19 @@ const SankeyChart = ({ transactions, selectedAddress, addressData }) => {
                 }
 
                 // 깊이 레이블 추가
-                const depthLabels = ["중심 노드", "1단계 연결 노드", "2단계 연결 노드"];
+                const depthLabels = [
+                    "중심 노드",
+                    "1단계 연결 노드",
+                    "2단계 연결 노드",
+                ];
                 for (let i = 0; i <= maxDepth; i++) {
                     // 각 깊이별 노드 그룹 찾기
-                    const depthNodes = layoutNodes.filter(d => d.depth === i);
+                    const depthNodes = layoutNodes.filter((d) => d.depth === i);
                     if (depthNodes.length === 0) continue;
 
                     // 위치 계산
-                    const minX = d3.min(depthNodes, d => d.x0);
-                    const maxX = d3.max(depthNodes, d => d.x1);
+                    const minX = d3.min(depthNodes, (d) => d.x0);
+                    const maxX = d3.max(depthNodes, (d) => d.x1);
                     const centerX = (minX + maxX) / 2;
 
                     // 깊이 레이블 추가

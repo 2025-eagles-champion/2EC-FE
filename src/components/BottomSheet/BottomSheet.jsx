@@ -1,15 +1,24 @@
 // src/components/BottomSheet/BottomSheet.jsx
-import React, { useState, useEffect, useRef } from 'react';
-import './BottomSheet.css';
-import SankeyChart from '../SankeyChart/SankeyChart';
-import StoryLineChart from '../StoryLineChart/StoryLineChart'; // StoryLineChart 컴포넌트 import
-import TimeSeriesChart from '../TimeSeriesChart/TimeSeriesChart'; // TimeSeriesChart 컴포넌트 import
-import { shortenAddress, getAddressName } from '../../utils/dataUtils';
-import { fetchAddressDetail, fetchAddressTransactions } from '../../services/api';
-import { tierConfig } from '../../constants/tierConfig';
-import { getChainColor, getTierColor } from '../../utils/colorUtils';
+import React, { useState, useEffect, useRef } from "react";
+import "./BottomSheet.css";
+import SankeyChart from "../SankeyChart/SankeyChart";
+import StoryLineChart from "../StoryLineChart/StoryLineChart"; // StoryLineChart 컴포넌트 import
+import TimeSeriesChart from "../TimeSeriesChart/TimeSeriesChart"; // TimeSeriesChart 컴포넌트 import
+import { shortenAddress, getAddressName } from "../../utils/dataUtils";
+import {
+    fetchAddressDetail,
+    fetchAddressTransactions,
+} from "../../services/api";
+import { tierConfig } from "../../constants/tierConfig";
+import { getChainColor, getTierColor } from "../../utils/colorUtils";
 
-const BottomSheet = ({ isOpen, onClose, selectedNode, allTransactions, addressData }) => {
+const BottomSheet = ({
+    isOpen,
+    onClose,
+    selectedNode,
+    allTransactions,
+    addressData,
+}) => {
     const [nodeDetail, setNodeDetail] = useState(null);
     const [nodeTransactions, setNodeTransactions] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -29,9 +38,11 @@ const BottomSheet = ({ isOpen, onClose, selectedNode, allTransactions, addressDa
 
             // 직접 데이터 찾기
             const directSearch = (id) => {
-                const addrInfo = addressData.find(a => a.address === id || a.id === id);
-                const transactions = allTransactions.filter(tx =>
-                    tx.fromAddress === id || tx.toAddress === id
+                const addrInfo = addressData.find(
+                    (a) => a.address === id || a.id === id
+                );
+                const transactions = allTransactions.filter(
+                    (tx) => tx.fromAddress === id || tx.toAddress === id
                 );
 
                 if (addrInfo) {
@@ -60,10 +71,10 @@ const BottomSheet = ({ isOpen, onClose, selectedNode, allTransactions, addressDa
                         sent_tx_amount: 0,
                         recv_tx_amount: 0,
                         pagerank: 0.1,
-                        tier: "bronze"
+                        tier: "bronze",
                     };
                 }),
-                fetchAddressTransactions(nodeId).catch(() => [])
+                fetchAddressTransactions(nodeId).catch(() => []),
             ])
                 .then(([detailData, transactionData]) => {
                     setNodeDetail(detailData);
@@ -107,24 +118,51 @@ const BottomSheet = ({ isOpen, onClose, selectedNode, allTransactions, addressDa
                         </tr>
                     </thead>
                     <tbody>
-                        {nodeTransactions.slice(0, 5).map(tx => {
+                        {nodeTransactions.slice(0, 5).map((tx) => {
                             if (!tx || !tx.txhash) return null;
 
                             return (
                                 <tr key={tx.txhash}>
-                                    <td>{tx.type || '전송'}</td>
+                                    <td>{tx.type || "전송"}</td>
                                     <td>
-                                        <span className="address-chip" style={{ backgroundColor: getChainColor(tx.fromChain || 'unknown') }}>
-                                            {shortenAddress(tx.fromAddress || '-')}
+                                        <span
+                                            className="address-chip"
+                                            style={{
+                                                backgroundColor: getChainColor(
+                                                    tx.fromChain || "unknown"
+                                                ),
+                                            }}
+                                        >
+                                            {shortenAddress(
+                                                tx.fromAddress || "-"
+                                            )}
                                         </span>
                                     </td>
                                     <td>
-                                        <span className="address-chip" style={{ backgroundColor: getChainColor(tx.toChain || 'unknown') }}>
-                                            {shortenAddress(tx.toAddress || '-')}
+                                        <span
+                                            className="address-chip"
+                                            style={{
+                                                backgroundColor: getChainColor(
+                                                    tx.toChain || "unknown"
+                                                ),
+                                            }}
+                                        >
+                                            {shortenAddress(
+                                                tx.toAddress || "-"
+                                            )}
                                         </span>
                                     </td>
-                                    <td>{(tx.amount || 0).toFixed(4)} {tx.dpDenom || ''}</td>
-                                    <td>{tx.timestamp ? new Date(tx.timestamp).toLocaleString() : '-'}</td>
+                                    <td>
+                                        {(tx.amount || 0).toFixed(4)}{" "}
+                                        {tx.dpDenom || ""}
+                                    </td>
+                                    <td>
+                                        {tx.timestamp
+                                            ? new Date(
+                                                  tx.timestamp
+                                              ).toLocaleString()
+                                            : "-"}
+                                    </td>
                                 </tr>
                             );
                         })}
@@ -138,26 +176,27 @@ const BottomSheet = ({ isOpen, onClose, selectedNode, allTransactions, addressDa
     const renderNodeDetailInfo = () => {
         if (!nodeDetail || !selectedNode) return null;
 
-        const nodeId = selectedNode.id || selectedNode.address || '';
+        const nodeId = selectedNode.id || selectedNode.address || "";
 
         // 주소로부터 체인 이름 추출 - 안전하게 처리
-        let chainName = 'unknown';
+        let chainName = "unknown";
         try {
             if (selectedNode.chain) {
                 // 노드에 체인 정보가 있으면 직접 사용
                 chainName = selectedNode.chain;
-            } else if (typeof nodeId === 'string' && nodeId.includes('1')) {
+            } else if (typeof nodeId === "string" && nodeId.includes("1")) {
                 // 주소 형식에서 체인 이름 추출 시도
-                chainName = nodeId.split('1')[0];
+                chainName = nodeId.split("1")[0];
             }
         } catch (e) {
-            console.warn('Error extracting chain name:', e);
+            console.warn("Error extracting chain name:", e);
         }
 
         // 페이지랭크가 없으면 0.1로 설정
-        const pageRank = nodeDetail.pagerank !== undefined ? nodeDetail.pagerank : 0.1;
+        const pageRank =
+            nodeDetail.pagerank !== undefined ? nodeDetail.pagerank : 0.1;
         // 티어가 없으면 기본값으로 bronze
-        const tier = nodeDetail.tier || 'bronze';
+        const tier = nodeDetail.tier || "bronze";
 
         // 페이지랭크가 NaN이 아닌지 확인
         const displayRank = isNaN(pageRank) ? 10 : (pageRank * 100).toFixed(1);
@@ -168,42 +207,51 @@ const BottomSheet = ({ isOpen, onClose, selectedNode, allTransactions, addressDa
                     <div className="node-title">
                         <div
                             className="node-icon"
-                            style={{ backgroundColor: getChainColor(chainName) }}
+                            style={{
+                                backgroundColor: getChainColor(chainName),
+                            }}
                         ></div>
                         <h3>{shortenAddress(nodeId, 8, 8)}</h3>
-                    </div>
-                    <div
-                        className="tier-badge"
-                        style={{ backgroundColor: getTierColor(tier) }}
-                    >
-                        {tierConfig[tier]?.label || '브론즈'}
                     </div>
                 </div>
 
                 <div className="stats-grid">
                     <div className="stat-card">
                         <div className="stat-title">총 전송량</div>
-                        <div className="stat-value">{(nodeDetail.sent_tx_amount || 0).toFixed(4)}</div>
+                        <div className="stat-value">
+                            {(nodeDetail.sent_tx_amount || 0).toFixed(4)}
+                        </div>
                     </div>
                     <div className="stat-card">
                         <div className="stat-title">총 수신량</div>
-                        <div className="stat-value">{(nodeDetail.recv_tx_amount || 0).toFixed(4)}</div>
+                        <div className="stat-value">
+                            {(nodeDetail.recv_tx_amount || 0).toFixed(4)}
+                        </div>
                     </div>
                     <div className="stat-card">
                         <div className="stat-title">전송 횟수</div>
-                        <div className="stat-value">{nodeDetail.sent_tx_count || 0}</div>
+                        <div className="stat-value">
+                            {nodeDetail.sent_tx_count || 0}
+                        </div>
                     </div>
                     <div className="stat-card">
                         <div className="stat-title">수신 횟수</div>
-                        <div className="stat-value">{nodeDetail.recv_tx_count || 0}</div>
+                        <div className="stat-value">
+                            {nodeDetail.recv_tx_count || 0}
+                        </div>
                     </div>
                     <div className="stat-card">
                         <div className="stat-title">활동 일수</div>
-                        <div className="stat-value">{nodeDetail.active_days_count || 0}</div>
+                        <div className="stat-value">
+                            {nodeDetail.active_days_count || 0}
+                        </div>
                     </div>
                     <div className="stat-card">
                         <div className="stat-title">거래 상대방 수</div>
-                        <div className="stat-value">{(nodeDetail.counterparty_count_sent || 0) + (nodeDetail.counterparty_count_recv || 0)}</div>
+                        <div className="stat-value">
+                            {(nodeDetail.counterparty_count_sent || 0) +
+                                (nodeDetail.counterparty_count_recv || 0)}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -212,16 +260,18 @@ const BottomSheet = ({ isOpen, onClose, selectedNode, allTransactions, addressDa
 
     return (
         <div
-            className={`bottom-sheet-overlay ${isOpen ? 'open' : ''}`}
+            className={`bottom-sheet-overlay ${isOpen ? "open" : ""}`}
             onClick={handleOutsideClick}
         >
             <div
                 ref={sheetRef}
-                className={`bottom-sheet ${isOpen ? 'open' : ''}`}
+                className={`bottom-sheet ${isOpen ? "open" : ""}`}
             >
                 <div className="bottom-sheet-header">
                     <div className="handle-bar"></div>
-                    <button className="close-button" onClick={handleClose}>×</button>
+                    <button className="close-button" onClick={handleClose}>
+                        ×
+                    </button>
                 </div>
 
                 <div className="bottom-sheet-content">
@@ -235,7 +285,10 @@ const BottomSheet = ({ isOpen, onClose, selectedNode, allTransactions, addressDa
                                 <h4>거래 흐름 다이어그램</h4>
                                 <SankeyChart
                                     transactions={allTransactions}
-                                    selectedAddress={selectedNode?.id || selectedNode?.address}
+                                    selectedAddress={
+                                        selectedNode?.id ||
+                                        selectedNode?.address
+                                    }
                                     addressData={addressData}
                                 />
                             </div>
@@ -245,7 +298,10 @@ const BottomSheet = ({ isOpen, onClose, selectedNode, allTransactions, addressDa
                                 <h4>시간에 따른 체인 거래 흐름</h4>
                                 <StoryLineChart
                                     transactions={nodeTransactions}
-                                    selectedAddress={selectedNode?.id || selectedNode?.address}
+                                    selectedAddress={
+                                        selectedNode?.id ||
+                                        selectedNode?.address
+                                    }
                                 />
                             </div>
 
@@ -254,7 +310,10 @@ const BottomSheet = ({ isOpen, onClose, selectedNode, allTransactions, addressDa
                                 <h4>시간 축 기반 시각화</h4>
                                 <TimeSeriesChart
                                     transactions={nodeTransactions}
-                                    selectedAddress={selectedNode?.id || selectedNode?.address}
+                                    selectedAddress={
+                                        selectedNode?.id ||
+                                        selectedNode?.address
+                                    }
                                 />
                             </div>
 
