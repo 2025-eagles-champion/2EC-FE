@@ -20,12 +20,12 @@ function App() {
     const [txCountWeight, setTxCountWeight] = useState(25);
     const [txAmountWeight, setTxAmountWeight] = useState(25);
     const [dateRange, setDateRange] = useState({
-        startDate: "2022-01-01",
+        startDate: "2021-01-01",
         endDate: "2022-02-24",
     });
 
     // API URL 설정
-    const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
+    const API_URL = "http://172.22.220.142:8000";
 
     // 노드 데이터 로드 함수
     const loadData = async (filters = {}) => {
@@ -41,7 +41,7 @@ function App() {
                 batch_quant_weight: batchWeight,
                 tx_count_weight: txCountWeight,
                 tx_amount_weight: txAmountWeight,
-                top_n: 2,
+                top_n: 1,
                 ...filters,
             };
 
