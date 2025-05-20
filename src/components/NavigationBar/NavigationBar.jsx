@@ -1,34 +1,26 @@
 // src/components/NavigationBar/NavigationBar.jsx
-import React, { useState, useEffect, useCallback } from 'react';
-import Slider from './Slider';
-import NodeList from './NodeList';
-import './NavigationBar.css';
-import { fetchAddressData } from '../../services/api';
-import { getTopKNodes } from '../../utils/dataUtils';
+import React, { useState, useEffect, useCallback } from "react";
+import Slider from "./Slider";
+import NodeList from "./NodeList";
+import "./NavigationBar.css";
+import { fetchAddressData } from "../../services/api";
+import { getTopKNodes } from "../../utils/dataUtils";
 
-const NavigationBar = ({ onNodeSelect }) => {
-    // 슬라이더 상태 값
-    const [batchWeight, setBatchWeight] = useState(50);
-    const [txCountWeight, setTxCountWeight] = useState(25);
-    const [txAmountWeight, setTxAmountWeight] = useState(25);
+const NavigationBar = ({
+    addressData,
+    onNodeSelect,
+    onFilterChange,
+    weights,
+}) => {
+    // App.jsx에서 받은 weights 사용
+    const { batchWeight, txCountWeight, txAmountWeight } = weights || {
+        batchWeight: 50,
+        txCountWeight: 25,
+        txAmountWeight: 25,
+    };
+
     const [topNodes, setTopNodes] = useState([]);
     const [loading, setLoading] = useState(false);
-    const [addressData, setAddressData] = useState([]);
-
-    // 주소 데이터 로드
-    useEffect(() => {
-        const loadAddressData = async () => {
-            try {
-                const data = await fetchAddressData();
-                console.log("Loaded address data:", data.length, "items");
-                setAddressData(data);
-            } catch (error) {
-                console.error("Failed to fetch address data:", error);
-            }
-        };
-
-        loadAddressData();
-    }, []);
 
     // 슬라이더 값이 변경될 때마다 Top-K 노드 조회
     useEffect(() => {
@@ -37,13 +29,25 @@ const NavigationBar = ({ onNodeSelect }) => {
             return;
         }
 
-        console.log("Calculating top nodes with weights:", batchWeight, txCountWeight, txAmountWeight);
+        console.log(
+            "Calculating top nodes with weights:",
+            batchWeight,
+            txCountWeight,
+            txAmountWeight
+        );
+
         setLoading(true);
 
         // setTimeout을 사용하여 UI 렌더링 차단 방지
         setTimeout(() => {
             try {
-                const nodes = getTopKNodes(addressData, batchWeight, txCountWeight, txAmountWeight, 10);
+                const nodes = getTopKNodes(
+                    addressData,
+                    batchWeight,
+                    txCountWeight,
+                    txAmountWeight,
+                    10
+                );
                 console.log("Top nodes calculated:", nodes);
                 setTopNodes(nodes);
             } catch (error) {
@@ -52,77 +56,64 @@ const NavigationBar = ({ onNodeSelect }) => {
                 setLoading(false);
             }
         }, 0);
-
     }, [batchWeight, txCountWeight, txAmountWeight, addressData]);
 
     // 슬라이더 값 변경 핸들러
     const handleBatchWeightChange = (value) => {
         console.log("Batch weight changed to:", value);
-        setBatchWeight(value);
+        onFilterChange.batchWeight(value);
     };
 
     const handleTxCountWeightChange = (value) => {
         console.log("TX count weight changed to:", value);
-        setTxCountWeight(value);
+        onFilterChange.txCountWeight(value);
     };
 
     const handleTxAmountWeightChange = (value) => {
         console.log("TX amount weight changed to:", value);
-        setTxAmountWeight(value);
-    };
-
-    // 노드 선택 핸들러
-    const handleNodeSelect = (node) => {
-        console.log("Node selected:", node);
-        onNodeSelect(node);
+        onFilterChange.txAmountWeight(value);
     };
 
     console.log("NavigationBar rendering with top nodes:", topNodes?.length);
 
     return (
         <div className="navigation-bar">
-            <div className="sliders-section">
-                <h3>필터링 옵션</h3>
+            <div className="filter-section">
+                <h3>필터 설정</h3>
                 <div className="slider-container">
                     <div className="slider-flex">
                         <label>배치/퀀트 가중치</label>
                         <span className="slider-value">{batchWeight}%</span>
                     </div>
                     <Slider
+                        label="배치 수량 가중치"
                         value={batchWeight}
                         onChange={handleBatchWeightChange}
-                        min={0}
-                        max={100}
                     />
                 </div>
-
                 <div className="slider-container">
                     <div className="slider-flex">
                         <label>거래 횟수 가중치</label>
                         <span className="slider-value">{txCountWeight}%</span>
                     </div>
                     <Slider
+                        label="거래 횟수 가중치"
                         value={txCountWeight}
                         onChange={handleTxCountWeightChange}
-                        min={0}
-                        max={100}
                     />
                 </div>
-
                 <div className="slider-container">
                     <div className="slider-flex">
                         <label>거래량 가중치</label>
                         <span className="slider-value">{txAmountWeight}%</span>
                     </div>
                     <Slider
+                        label="거래 금액 가중치"
                         value={txAmountWeight}
                         onChange={handleTxAmountWeightChange}
-                        min={0}
-                        max={100}
                     />
                 </div>
             </div>
-
             <div className="nodes-section">
                 <h3>Top10 노드 목록 ({topNodes?.length || 0}개)</h3>
                 {loading ? (
@@ -131,8 +122,10 @@ const NavigationBar = ({ onNodeSelect }) => {
                 ) : (
                     <div className="node-list-container">
                         <NodeList
-                            nodes={topNodes}
-                            onNodeSelect={handleNodeSelect}
+                            addressData={addressData}
+                            topNodes={topNodes}
+                            loading={loading}
+                            onNodeSelect={onNodeSelect}
                         />
                     </div>
                 )}
