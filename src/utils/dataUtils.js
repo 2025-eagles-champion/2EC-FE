@@ -5,6 +5,32 @@ export const shortenAddress = (address, prefixLength = 6, suffixLength = 4) => {
     return `${address.substring(0, prefixLength)}...${address.substring(address.length - suffixLength)}`;
 };
 
+// 주소 이름 추출 함수 (체인 접두사와 처음 몇 자리)
+export const getAddressName = (address) => {
+    if (!address || typeof address !== 'string') return 'Unknown';
+
+    try {
+        // 체인 접두사 추출 (첫 번째 '1' 앞까지)
+        let chainPrefix = 'unknown';
+        let uuid = '';
+
+        if (address.includes('1')) {
+            const parts = address.split('1');
+            chainPrefix = parts[0];
+            uuid = parts.length > 1 ? parts[1].substring(0, 4) : '';
+        } else {
+            // '1'이 없는 경우 앞 부분 사용
+            chainPrefix = address.substring(0, 6);
+        }
+
+        // 체인명 + uuid 앞 네글자 형태로 구성
+        return `${chainPrefix}${uuid ? `.${uuid}` : ''}`;
+    } catch (e) {
+        console.warn('Error extracting address name:', e);
+        return 'Unknown';
+    }
+};
+
 // 그래프용 데이터 변환 함수
 export const transformTransactionsToGraphData = (transactions, addressData) => {
     if (!transactions || !Array.isArray(transactions) || !addressData || !Array.isArray(addressData)) {
