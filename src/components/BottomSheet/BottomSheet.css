@@ -157,10 +157,39 @@
     margin-bottom: 16px;
 }
 
-.transactions-list h4 {
-    margin-top: 0;
+.transactions-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     margin-bottom: 12px;
+}
+
+.transactions-list h4 {
+    margin: 0;
     color: #212529;
+}
+
+.transactions-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.items-per-page-select {
+    padding: 4px 8px;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    color: #495057;
+    background-color: #fff;
+}
+
+.table-wrapper {
+    max-height: 400px;
+    overflow-y: auto;
+    margin-bottom: 12px;
+    border: 1px solid #eaecef;
+    border-radius: 6px;
 }
 
 .transactions-list table {
@@ -176,9 +205,12 @@
 }
 
 .transactions-list th {
+    position: sticky;
+    top: 0;
     font-weight: 500;
     color: #495057;
     background-color: #f8f9fa;
+    z-index: 1;
 }
 
 .address-chip {
@@ -193,4 +225,69 @@
     text-align: center;
     padding: 24px;
     color: #6c757d;
+}
+
+/* 페이지네이션 스타일 */
+.pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 16px;
+    gap: 8px;
+}
+
+.pagination-button {
+    padding: 6px 10px;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    background-color: #fff;
+    font-size: 14px;
+    color: #495057;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.pagination-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.pagination-button:not(:disabled):hover {
+    background-color: #f1f3f5;
+    border-color: #adb5bd;
+}
+
+.pagination-info {
+    padding: 0 12px;
+    font-size: 14px;
+    color: #495057;
+}
+
+/* 모바일 대응 */
+@media (max-width: 768px) {
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .transactions-list th,
+    .transactions-list td {
+        padding: 8px 6px;
+        font-size: 0.85rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .transactions-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    .table-wrapper {
+        max-height: 300px;
+    }
 }

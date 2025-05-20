@@ -2,8 +2,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import "./BottomSheet.css";
 import SankeyChart from "../SankeyChart/SankeyChart";
-import StoryLineChart from "../StoryLineChart/StoryLineChart"; // StoryLineChart 컴포넌트 import
-import TimeSeriesChart from "../TimeSeriesChart/TimeSeriesChart"; // TimeSeriesChart 컴포넌트 import
+import StoryLineChart from "../StoryLineChart/StoryLineChart";
+import TimeSeriesChart from "../TimeSeriesChart/TimeSeriesChart";
 import { shortenAddress, getAddressName } from "../../utils/dataUtils";
 import {
     fetchAddressDetail,
@@ -13,21 +13,27 @@ import { tierConfig } from "../../constants/tierConfig";
 import { getChainColor, getTierColor } from "../../utils/colorUtils";
 
 const BottomSheet = ({
-    isOpen,
-    onClose,
-    selectedNode,
-    allTransactions,
-    addressData,
-}) => {
+                         isOpen,
+                         onClose,
+                         selectedNode,
+                         allTransactions,
+                         addressData,
+                     }) => {
     const [nodeDetail, setNodeDetail] = useState(null);
     const [nodeTransactions, setNodeTransactions] = useState([]);
     const [loading, setLoading] = useState(false);
     const sheetRef = useRef(null);
 
+    // 페이지네이션 상태 추가
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
+
     // 선택된 노드가 변경될 때마다 상세 정보 조회
     useEffect(() => {
         if (selectedNode && isOpen) {
             setLoading(true);
+            // 페이지네이션 초기화
+            setCurrentPage(1);
 
             const nodeId = selectedNode.id || selectedNode.address;
             if (!nodeId) {
@@ -47,7 +53,11 @@ const BottomSheet = ({
 
                 if (addrInfo) {
                     setNodeDetail(addrInfo);
-                    setNodeTransactions(transactions);
+                    // 트랜잭션을 시간 순으로 정렬 (최신 거래가 상단에 표시되도록)
+                    const sortedTransactions = [...transactions].sort((a, b) =>
+                        b.timestamp - a.timestamp
+                    );
+                    setNodeTransactions(sortedTransactions);
                     setLoading(false);
                     return true;
                 }
@@ -78,7 +88,11 @@ const BottomSheet = ({
             ])
                 .then(([detailData, transactionData]) => {
                     setNodeDetail(detailData);
-                    setNodeTransactions(transactionData);
+                    // 트랜잭션을 시간 순으로 정렬 (최신 거래가 상단에 표시되도록)
+                    const sortedTransactions = [...transactionData].sort((a, b) =>
+                        b.timestamp - a.timestamp
+                    );
+                    setNodeTransactions(sortedTransactions);
                 })
                 .finally(() => {
                     setLoading(false);
@@ -98,17 +112,55 @@ const BottomSheet = ({
         }
     };
 
+    // 페이지 변경 핸들러
+    const handlePageChange = (newPage) => {
+        setCurrentPage(newPage);
+    };
+
+    // 페이지 당 항목 수 변경 핸들러
+    const handleItemsPerPageChange = (e) => {
+        setItemsPerPage(Number(e.target.value));
+        setCurrentPage(1); // 페이지 당 항목 수 변경 시 첫 페이지로 이동
+    };
+
     // 트랜잭션 목록 렌더링
     const renderTransactionsList = () => {
         if (!nodeTransactions || nodeTransactions.length === 0) {
             return <div className="no-transactions">거래 내역이 없습니다</div>;
         }
 
+        // 현재 페이지에 표시할 항목 계산
+        const indexOfLastItem = currentPage * itemsPerPage;
+        const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+        // 최대 100개까지만 표시
+        const maxTransactions = nodeTransactions.slice(0, 100);
+        const currentItems = maxTransactions.slice(indexOfFirstItem, indexOfLastItem);
+
+        // 총 페이지 수 계산
+        const totalPages = Math.ceil(Math.min(nodeTransactions.length, 100) / itemsPerPage);
+
         return (
             <div className="transactions-list">
-                <h4>최근 거래 내역</h4>
-                <table>
-                    <thead>
+                <div className="transactions-header">
+                    <h4>최근 거래 내역 ({Math.min(nodeTransactions.length, 100)}건)</h4>
+                    <div className="transactions-controls">
+                        <select
+                            value={itemsPerPage}
+                            onChange={handleItemsPerPageChange}
+                            className="items-per-page-select"
+                        >
+                            <option value={5}>5개씩 보기</option>
+                            <option value={10}>10개씩 보기</option>
+                            <option value={20}>20개씩 보기</option>
+                            <option value={50}>50개씩 보기</option>
+                            <option value={100}>100개씩 보기</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div className="table-wrapper">
+                    <table>
+                        <thead>
                         <tr>
                             <th>타입</th>
                             <th>발신지</th>
@@ -116,41 +168,41 @@ const BottomSheet = ({
                             <th>금액</th>
                             <th>시간</th>
                         </tr>
-                    </thead>
-                    <tbody>
-                        {nodeTransactions.slice(0, 5).map((tx) => {
+                        </thead>
+                        <tbody>
+                        {currentItems.map((tx) => {
                             if (!tx || !tx.txhash) return null;
 
                             return (
                                 <tr key={tx.txhash}>
                                     <td>{tx.type || "전송"}</td>
                                     <td>
-                                        <span
-                                            className="address-chip"
-                                            style={{
-                                                backgroundColor: getChainColor(
-                                                    tx.fromChain || "unknown"
-                                                ),
-                                            }}
-                                        >
-                                            {shortenAddress(
-                                                tx.fromAddress || "-"
-                                            )}
-                                        </span>
+                                            <span
+                                                className="address-chip"
+                                                style={{
+                                                    backgroundColor: getChainColor(
+                                                        tx.fromChain || "unknown"
+                                                    ),
+                                                }}
+                                            >
+                                                {shortenAddress(
+                                                    tx.fromAddress || "-"
+                                                )}
+                                            </span>
                                     </td>
                                     <td>
-                                        <span
-                                            className="address-chip"
-                                            style={{
-                                                backgroundColor: getChainColor(
-                                                    tx.toChain || "unknown"
-                                                ),
-                                            }}
-                                        >
-                                            {shortenAddress(
-                                                tx.toAddress || "-"
-                                            )}
-                                        </span>
+                                            <span
+                                                className="address-chip"
+                                                style={{
+                                                    backgroundColor: getChainColor(
+                                                        tx.toChain || "unknown"
+                                                    ),
+                                                }}
+                                            >
+                                                {shortenAddress(
+                                                    tx.toAddress || "-"
+                                                )}
+                                            </span>
                                     </td>
                                     <td>
                                         {(tx.amount || 0).toFixed(4)}{" "}
@@ -159,15 +211,55 @@ const BottomSheet = ({
                                     <td>
                                         {tx.timestamp
                                             ? new Date(
-                                                  tx.timestamp
-                                              ).toLocaleString()
+                                                tx.timestamp
+                                            ).toLocaleString()
                                             : "-"}
                                     </td>
                                 </tr>
                             );
                         })}
-                    </tbody>
-                </table>
+                        </tbody>
+                    </table>
+                </div>
+
+                {/* 페이지네이션 UI */}
+                {totalPages > 1 && (
+                    <div className="pagination">
+                        <button
+                            onClick={() => handlePageChange(1)}
+                            disabled={currentPage === 1}
+                            className="pagination-button"
+                        >
+                            &laquo;
+                        </button>
+                        <button
+                            onClick={() => handlePageChange(currentPage - 1)}
+                            disabled={currentPage === 1}
+                            className="pagination-button"
+                        >
+                            &lt;
+                        </button>
+
+                        <div className="pagination-info">
+                            {currentPage} / {totalPages}
+                        </div>
+
+                        <button
+                            onClick={() => handlePageChange(currentPage + 1)}
+                            disabled={currentPage === totalPages}
+                            className="pagination-button"
+                        >
+                            &gt;
+                        </button>
+                        <button
+                            onClick={() => handlePageChange(totalPages)}
+                            disabled={currentPage === totalPages}
+                            className="pagination-button"
+                        >
+                            &raquo;
+                        </button>
+                    </div>
+                )}
             </div>
         );
     };
