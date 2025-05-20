@@ -32,7 +32,7 @@ export const tierConfig = {
     }
 };
 
-// Get tier based on pagerank
+// PageRank 값에 따른 티어 반환
 export const getTierFromPageRank = (pageRank) => {
     if (pageRank >= tierConfig.diamond.minPageRank) return "diamond";
     if (pageRank >= tierConfig.platinum.minPageRank) return "platinum";

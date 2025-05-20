@@ -1,28 +1,155 @@
 // src/components/NetworkGraph/NetworkGraph.jsx
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import * as d3 from 'd3';
 import './NetworkGraph.css';
 import { getChainColor, getLinkColor, getNodeSize } from '../../utils/colorUtils';
-import { transformTransactionsToGraphData, shortenAddress } from '../../utils/dataUtils';
+import { shortenAddress } from '../../utils/dataUtils';
 
 const NetworkGraph = ({ transactions, addressData, onNodeClick, selectedNode }) => {
     const svgRef = useRef(null);
     const [graphData, setGraphData] = useState(null);
+    const [viewportWidth, setViewportWidth] = useState(window.innerWidth * 0.7);
+    const [viewportHeight, setViewportHeight] = useState(window.innerHeight);
 
-    // 트랜잭션 데이터를 그래프 데이터로 변환
-    useEffect(() => {
-        if (transactions && addressData) {
-            const data = transformTransactionsToGraphData(transactions, addressData);
-            setGraphData(data);
+    // 트랜잭션 데이터를 그래프 데이터로 변환하는 로직 최적화
+    const transformedGraphData = useMemo(() => {
+        if (!transactions || !addressData || transactions.length === 0 || addressData.length === 0) {
+            return { nodes: [], links: [] };
         }
+
+        console.log('그래프 데이터 변환 시작:', transactions.length, '트랜잭션,', addressData.length, '주소 데이터');
+
+        // 주소 인덱스 맵 생성
+        const addressMap = new Map();
+        addressData.forEach(addr => {
+            if (addr && addr.address) {
+                addressMap.set(addr.address, addr);
+            }
+        });
+
+        // 노드 및 링크 생성
+        const nodes = new Map();
+        const links = new Map();
+
+        // 먼저 Top-K 노드들을 추가 (중요도 순서로 정렬)
+        const sortedAddressData = [...addressData].sort((a, b) => {
+            // final_score 또는 pagerank로 정렬
+            const scoreA = a.final_score !== undefined ? a.final_score : (a.pagerank || 0);
+            const scoreB = b.final_score !== undefined ? b.final_score : (b.pagerank || 0);
+            return scoreB - scoreA;
+        });
+
+        // 노드 추가
+        sortedAddressData.forEach(addr => {
+            if (addr && addr.address && !nodes.has(addr.address)) {
+                nodes.set(addr.address, {
+                    id: addr.address,
+                    name: shortenAddress(addr.address, 5, 4),
+                    chain: addr.chain || addr.address.split('1')[0] || 'unknown',
+                    sent_tx_count: addr.sent_tx_count || 0,
+                    recv_tx_count: addr.recv_tx_count || 0,
+                    sent_tx_amount: addr.sent_tx_amount || 0,
+                    recv_tx_amount: addr.recv_tx_amount || 0,
+                    pagerank: addr.pagerank || addr.final_score || 0.1,
+                    tier: addr.tier || 'bronze',
+                    isTopNode: sortedAddressData.slice(0, 10).some(top => top.address === addr.address)
+                });
+            }
+        });
+
+        // 트랜잭션으로부터 링크 생성
+        transactions.forEach(tx => {
+            if (!tx || !tx.fromAddress || !tx.toAddress) {
+                return;
+            }
+
+            // fromAddress 및 toAddress가 주소 목록에 있는지 확인 (2-depth 제한을 위함)
+            if (!nodes.has(tx.fromAddress) && !nodes.has(tx.toAddress)) {
+                return; // 둘 다 주요 노드 집합에 없으면 링크 생성 안 함
+            }
+
+            // 아직 없는 노드라면 추가
+            if (!nodes.has(tx.fromAddress)) {
+                const addrInfo = addressMap.get(tx.fromAddress) || {};
+                nodes.set(tx.fromAddress, {
+                    id: tx.fromAddress,
+                    name: shortenAddress(tx.fromAddress, 5, 4),
+                    chain: tx.fromChain || 'unknown',
+                    sent_tx_count: addrInfo.sent_tx_count || 0,
+                    recv_tx_count: addrInfo.recv_tx_count || 0,
+                    sent_tx_amount: addrInfo.sent_tx_amount || 0,
+                    recv_tx_amount: addrInfo.recv_tx_amount || 0,
+                    pagerank: addrInfo.pagerank || 0.1,
+                    tier: addrInfo.tier || 'bronze',
+                    isTopNode: false
+                });
+            }
+
+            if (!nodes.has(tx.toAddress)) {
+                const addrInfo = addressMap.get(tx.toAddress) || {};
+                nodes.set(tx.toAddress, {
+                    id: tx.toAddress,
+                    name: shortenAddress(tx.toAddress, 5, 4),
+                    chain: tx.toChain || 'unknown',
+                    sent_tx_count: addrInfo.sent_tx_count || 0,
+                    recv_tx_count: addrInfo.recv_tx_count || 0,
+                    sent_tx_amount: addrInfo.sent_tx_amount || 0,
+                    recv_tx_amount: addrInfo.recv_tx_amount || 0,
+                    pagerank: addrInfo.pagerank || 0.1,
+                    tier: addrInfo.tier || 'bronze',
+                    isTopNode: false
+                });
+            }
+
+            // 링크 생성 또는 업데이트
+            const linkId = `${tx.fromAddress}-${tx.toAddress}`;
+            if (!links.has(linkId)) {
+                links.set(linkId, {
+                    source: tx.fromAddress,
+                    target: tx.toAddress,
+                    value: tx.amount || 0,
+                    count: 1,
+                    transactions: [tx],
+                    isCrossChain: tx.fromChain !== tx.toChain
+                });
+            } else {
+                const link = links.get(linkId);
+                link.value += (tx.amount || 0);
+                link.count += 1;
+                link.transactions.push(tx);
+            }
+        });
+
+        console.log('그래프 데이터 변환 완료:', nodes.size, '노드,', links.size, '링크');
+
+        return {
+            nodes: Array.from(nodes.values()),
+            links: Array.from(links.values())
+        };
     }, [transactions, addressData]);
+
+    // 뷰포트 크기 변경 감지
+    useEffect(() => {
+        const handleResize = () => {
+            setViewportWidth(window.innerWidth * 0.7);
+            setViewportHeight(window.innerHeight);
+        };
+
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
+    // 변환된 그래프 데이터 설정
+    useEffect(() => {
+        setGraphData(transformedGraphData);
+    }, [transformedGraphData]);
 
     // 그래프 렌더링
     useEffect(() => {
         if (!graphData || !svgRef.current) return;
 
-        const width = svgRef.current.clientWidth;
-        const height = svgRef.current.clientHeight;
+        const width = viewportWidth;
+        const height = viewportHeight;
 
         // 기존 SVG 요소 초기화
         d3.select(svgRef.current).selectAll("*").remove();
@@ -49,12 +176,26 @@ const NetworkGraph = ({ transactions, addressData, onNodeClick, selectedNode }) 
         const simulation = d3.forceSimulation(graphData.nodes)
             .force("link", d3.forceLink(graphData.links)
                 .id(d => d.id)
-                .distance(100)
+                .distance(d => {
+                    // Top 노드라면 더 멀리 배치
+                    const source = typeof d.source === 'object' ? d.source : graphData.nodes.find(n => n.id === d.source);
+                    const target = typeof d.target === 'object' ? d.target : graphData.nodes.find(n => n.id === d.target);
+
+                    if (source.isTopNode && target.isTopNode) {
+                        return 200; // Top 노드끼리는 더 멀리
+                    } else if (source.isTopNode || target.isTopNode) {
+                        return 150; // Top 노드와 일반 노드
+                    }
+                    return 100; // 일반 노드끼리
+                })
             )
-            .force("charge", d3.forceManyBody().strength(-500))
+            .force("charge", d3.forceManyBody()
+                .strength(d => d.isTopNode ? -800 : -400)
+            )
             .force("center", d3.forceCenter(width / 2, height / 2))
             .force("x", d3.forceX(width / 2).strength(0.1))
-            .force("y", d3.forceY(height / 2).strength(0.1));
+            .force("y", d3.forceY(height / 2).strength(0.1))
+            .force("collision", d3.forceCollide().radius(d => getNodeSize(d) * 1.5));
 
         // 링크 생성
         const link = g.append("g")
@@ -81,7 +222,7 @@ const NetworkGraph = ({ transactions, addressData, onNodeClick, selectedNode }) 
             .selectAll("g")
             .data(graphData.nodes)
             .enter().append("g")
-            .attr("class", "node")
+            .attr("class", d => `node ${d.isTopNode ? 'top-node' : ''}`)
             .call(d3.drag()
                 .on("start", dragstarted)
                 .on("drag", dragged)
@@ -96,15 +237,26 @@ const NetworkGraph = ({ transactions, addressData, onNodeClick, selectedNode }) 
         nodeGroup.append("circle")
             .attr("r", d => getNodeSize(d))
             .attr("fill", d => getChainColor(d.chain))
-            .attr("stroke", "#fff")
-            .attr("stroke-width", 1.5);
+            .attr("stroke", d => d.isTopNode ? "#fff" : "rgba(255,255,255,0.5)")
+            .attr("stroke-width", d => d.isTopNode ? 2 : 1.5);
+
+        // 중요도 있는 노드는 테두리 추가
+        nodeGroup.filter(d => d.isTopNode)
+            .append("circle")
+            .attr("r", d => getNodeSize(d) + 4)
+            .attr("fill", "none")
+            .attr("stroke", d => getChainColor(d.chain))
+            .attr("stroke-width", 1)
+            .attr("stroke-opacity", 0.5)
+            .attr("stroke-dasharray", "3,2");
 
         // 노드 라벨 추가
         nodeGroup.append("text")
             .attr("dy", d => getNodeSize(d) + 15)
             .attr("text-anchor", "middle")
             .attr("class", "node-label")
-            .text(d => d.name || shortenAddress(d.id, 5, 4));
+            .text(d => d.name || shortenAddress(d.id, 5, 4))
+            .attr("opacity", d => d.isTopNode ? 1 : 0.7);
 
         // 선택된 노드 강조 표시
         if (selectedNode) {
@@ -118,7 +270,7 @@ const NetworkGraph = ({ transactions, addressData, onNodeClick, selectedNode }) 
 
         // 노드에 툴팁 추가
         nodeGroup.append("title")
-            .text(d => `${d.id} (${d.chain})`);
+            .text(d => `${d.id} (${d.chain})\n거래 횟수: ${d.sent_tx_count + d.recv_tx_count}\n거래량: ${(d.sent_tx_amount + d.recv_tx_amount).toFixed(2)}`);
 
         // 시뮬레이션 이벤트 핸들러
         simulation.on("tick", () => {
@@ -146,8 +298,11 @@ const NetworkGraph = ({ transactions, addressData, onNodeClick, selectedNode }) 
 
         function dragended(event, d) {
             if (!event.active) simulation.alphaTarget(0);
-            d.fx = null;
-            d.fy = null;
+            // Top 노드가 아니면 고정 해제
+            if (!d.isTopNode) {
+                d.fx = null;
+                d.fy = null;
+            }
         }
 
         // 선택된 노드가 있으면 뷰를 해당 노드로 초점 맞추기
@@ -168,7 +323,7 @@ const NetworkGraph = ({ transactions, addressData, onNodeClick, selectedNode }) 
         return () => {
             simulation.stop();
         };
-    }, [graphData, selectedNode, onNodeClick]);
+    }, [graphData, selectedNode, onNodeClick, viewportWidth, viewportHeight]);
 
     return (
         <div className="network-graph-container">

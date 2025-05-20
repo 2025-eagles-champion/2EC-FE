@@ -1,5 +1,9 @@
 // src/utils/dataUtils.js
-import { chainColors, getTierFromPageRank } from '../constants/tierConfig';
+// 주소 축약 함수
+export const shortenAddress = (address, prefixLength = 6, suffixLength = 4) => {
+    if (!address || address.length <= prefixLength + suffixLength) return address;
+    return `${address.substring(0, prefixLength)}...${address.substring(address.length - suffixLength)}`;
+};
 
 // 그래프용 데이터 변환 함수
 export const transformTransactionsToGraphData = (transactions, addressData) => {
@@ -10,6 +14,14 @@ export const transformTransactionsToGraphData = (transactions, addressData) => {
 
     const nodes = new Map();
     const links = new Map();
+
+    // 주소 인덱스 맵 생성
+    const addressMap = new Map();
+    addressData.forEach(addr => {
+        if (addr && addr.address) {
+            addressMap.set(addr.address, addr);
+        }
+    });
 
     // 먼저 모든 고유 주소를 노드로 변환
     transactions.forEach(tx => {
@@ -23,15 +35,15 @@ export const transformTransactionsToGraphData = (transactions, addressData) => {
             const addressInfo = addressData.find(a => a && a.address === tx.fromAddress) || {};
             nodes.set(tx.fromAddress, {
                 id: tx.fromAddress,
-                name: getAddressName(tx.fromAddress),
+                name: shortenAddress(tx.fromAddress),
                 chain: tx.fromChain || 'unknown',
                 chainId: tx.fromChainId || 'unknown',
                 sent_tx_count: addressInfo.sent_tx_count || 0,
                 recv_tx_count: addressInfo.recv_tx_count || 0,
                 sent_tx_amount: addressInfo.sent_tx_amount || 0,
                 recv_tx_amount: addressInfo.recv_tx_amount || 0,
-                pagerank: addressInfo.pagerank || 0,
-                tier: addressInfo.tier || getTierFromPageRank(addressInfo.pagerank || 0)
+                pagerank: addressInfo.pagerank || addressInfo.final_score || 0,
+                tier: addressInfo.tier || getTierFromPageRank(addressInfo.pagerank || addressInfo.final_score || 0)
             });
         }
 
@@ -39,15 +51,15 @@ export const transformTransactionsToGraphData = (transactions, addressData) => {
             const addressInfo = addressData.find(a => a && a.address === tx.toAddress) || {};
             nodes.set(tx.toAddress, {
                 id: tx.toAddress,
-                name: getAddressName(tx.toAddress),
+                name: shortenAddress(tx.toAddress),
                 chain: tx.toChain || 'unknown',
                 chainId: tx.toChainId || 'unknown',
                 sent_tx_count: addressInfo.sent_tx_count || 0,
                 recv_tx_count: addressInfo.recv_tx_count || 0,
                 sent_tx_amount: addressInfo.sent_tx_amount || 0,
                 recv_tx_amount: addressInfo.recv_tx_amount || 0,
-                pagerank: addressInfo.pagerank || 0,
-                tier: addressInfo.tier || getTierFromPageRank(addressInfo.pagerank || 0)
+                pagerank: addressInfo.pagerank || addressInfo.final_score || 0,
+                tier: addressInfo.tier || getTierFromPageRank(addressInfo.pagerank || addressInfo.final_score || 0)
             });
         }
 
@@ -76,30 +88,13 @@ export const transformTransactionsToGraphData = (transactions, addressData) => {
     };
 };
 
-// 주소 이름 추출 함수 (체인 접두사와 처음 몇 자리)
-export const getAddressName = (address) => {
-    if (!address || typeof address !== 'string') return 'Unknown';
-
-    try {
-        // 체인 접두사 추출 (첫 번째 '1' 앞까지)
-        let chainPrefix = 'unknown';
-        let uuid = '';
-
-        if (address.includes('1')) {
-            const parts = address.split('1');
-            chainPrefix = parts[0];
-            uuid = parts.length > 1 ? parts[1].substring(0, 4) : '';
-        } else {
-            // '1'이 없는 경우 앞 부분 사용
-            chainPrefix = address.substring(0, 6);
-        }
-
-        // 체인명 + uuid 앞 네글자 형태로 구성
-        return `${chainPrefix}${uuid ? `.${uuid}` : ''}`;
-    } catch (e) {
-        console.warn('Error extracting address name:', e);
-        return 'Unknown';
-    }
+// 티어 기반 페이지랭크 계산
+export const getTierFromPageRank = (pageRank) => {
+    if (pageRank >= 0.8) return "diamond";
+    if (pageRank >= 0.7) return "platinum";
+    if (pageRank >= 0.5) return "gold";
+    if (pageRank >= 0.3) return "silver";
+    return "bronze";
 };
 
 // Top-K 노드 선택 함수
@@ -122,7 +117,7 @@ export const getTopKNodes = (addressData, batchWeight, txCountWeight, txAmountWe
 
     addressData.forEach(a => {
         if (a) {
-            maxPageRank = Math.max(maxPageRank, a.pagerank || 0);
+            maxPageRank = Math.max(maxPageRank, a.pagerank || a.final_score || 0);
             maxTxCount = Math.max(maxTxCount, (a.sent_tx_count || 0) + (a.recv_tx_count || 0));
             maxTxAmount = Math.max(maxTxAmount, (a.sent_tx_amount || 0) + (a.recv_tx_amount || 0));
         }
@@ -133,22 +128,28 @@ export const getTopKNodes = (addressData, batchWeight, txCountWeight, txAmountWe
     maxTxCount = maxTxCount || 1;
     maxTxAmount = maxTxAmount || 1;
 
-    console.log("Calculating Top-K with weights:",
-        { batch: normalizedBatchWeight, count: normalizedTxCountWeight, amount: normalizedTxAmountWeight });
-
     // 각 주소별 점수 계산
     const scoredAddresses = addressData
         .filter(addr => addr && (addr.address || addr.id)) // 유효한 주소만 필터링
         .map(address => {
             const nodeId = address.address || address.id;
-            const pagerankScore = (address.pagerank || 0.1) / maxPageRank;
+            const pagerankScore = (address.pagerank || address.final_score || 0.1) / maxPageRank;
             const txCountScore =
                 ((address.sent_tx_count || 0) + (address.recv_tx_count || 0)) / maxTxCount;
             const txAmountScore =
                 ((address.sent_tx_amount || 0) + (address.recv_tx_amount || 0)) / maxTxAmount;
 
+            // 배치/퀀트 점수 계산 (시간 엔트로피 기반)
+            let batchScore = 0;
+            if (address.hour_entropy !== undefined) {
+                // 낮은 엔트로피 = 높은 규칙성 = 높은 배치/퀀트 특성
+                batchScore = 1 - (address.hour_entropy / 4.32); // 최대 엔트로피 4.32 (log2(24))
+            } else {
+                batchScore = pagerankScore; // 시간 엔트로피가 없으면 페이지랭크 사용
+            }
+
             const totalScore =
-                (pagerankScore * normalizedBatchWeight) +
+                (batchScore * normalizedBatchWeight) +
                 (txCountScore * normalizedTxCountWeight) +
                 (txAmountScore * normalizedTxAmountWeight);
 
@@ -156,95 +157,14 @@ export const getTopKNodes = (addressData, batchWeight, txCountWeight, txAmountWe
                 ...address,
                 id: nodeId, // id 필드 추가
                 score: totalScore,
-                name: getAddressName(nodeId)
+                name: shortenAddress(nodeId)
             };
         });
 
     // 내림차순 정렬 후 Top-K 반환
-    const result = scoredAddresses
+    return scoredAddresses
         .sort((a, b) => b.score - a.score)
         .slice(0, k);
-
-    console.log(`Finished Top-K calculation: found ${result.length} nodes`);
-    return result;
-};
-
-// PageRank 알고리즘 계산 함수
-export const calculatePageRank = (graphData, damping = 0.85, iterations = 20) => {
-    if (!graphData || !graphData.nodes || !graphData.links) {
-        return [];
-    }
-
-    const nodes = graphData.nodes;
-    const links = graphData.links;
-
-    // 노드 ID -> 인덱스 맵핑
-    const nodeMap = new Map();
-    nodes.forEach((node, index) => {
-        nodeMap.set(node.id, index);
-    });
-
-    // 초기 PageRank 값 설정
-    const n = nodes.length;
-    const initialRank = 1 / n;
-    let ranks = new Array(n).fill(initialRank);
-
-    // 링크 정보 구성
-    const outLinks = new Array(n).fill(0);
-    const incomingLinks = Array.from({ length: n }, () => []);
-
-    links.forEach(link => {
-        const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
-        const targetId = typeof link.target === 'object' ? link.target.id : link.target;
-
-        const sourceIdx = nodeMap.get(sourceId);
-        const targetIdx = nodeMap.get(targetId);
-
-        if (sourceIdx !== undefined && targetIdx !== undefined) {
-            outLinks[sourceIdx]++;
-            incomingLinks[targetIdx].push({
-                sourceIdx,
-                weight: link.value || 1
-            });
-        }
-    });
-
-    // PageRank 계산 반복
-    for (let i = 0; i < iterations; i++) {
-        const newRanks = new Array(n).fill((1 - damping) / n);
-
-        for (let j = 0; j < n; j++) {
-            const incoming = incomingLinks[j];
-
-            for (const { sourceIdx, weight } of incoming) {
-                const sourceRank = ranks[sourceIdx];
-                const sourceTotalOut = outLinks[sourceIdx];
-
-                if (sourceTotalOut > 0) {
-                    newRanks[j] += damping * sourceRank * weight / sourceTotalOut;
-                }
-            }
-        }
-
-        // 정규화
-        let sum = 0;
-        for (let j = 0; j < n; j++) {
-            sum += newRanks[j];
-        }
-
-        for (let j = 0; j < n; j++) {
-            newRanks[j] /= sum;
-        }
-
-        ranks = newRanks;
-    }
-
-    // 결과 매핑
-    return nodes.map((node, index) => ({
-        ...node,
-        pagerank: ranks[index],
-        tier: getTierFromPageRank(ranks[index])
-    }));
 };
 
 // 샌키 차트용 데이터 변환 함수
@@ -264,16 +184,16 @@ export const transformToSankeyData = (transactions, selectedAddress) => {
         if (!nodeMap.has(tx.fromAddress)) {
             nodeMap.set(tx.fromAddress, {
                 id: tx.fromAddress,
-                name: getAddressName(tx.fromAddress),
-                chain: tx.fromChain
+                name: shortenAddress(tx.fromAddress),
+                chain: tx.fromChain || 'unknown'
             });
         }
 
         if (!nodeMap.has(tx.toAddress)) {
             nodeMap.set(tx.toAddress, {
                 id: tx.toAddress,
-                name: getAddressName(tx.toAddress),
-                chain: tx.toChain
+                name: shortenAddress(tx.toAddress),
+                chain: tx.toChain || 'unknown'
             });
         }
 
@@ -281,8 +201,8 @@ export const transformToSankeyData = (transactions, selectedAddress) => {
         links.push({
             source: tx.fromAddress,
             target: tx.toAddress,
-            value: tx.amount,
-            denom: tx.dpDenom
+            value: tx.amount || 1,  // 최소값 1 설정
+            denom: tx.dpDenom || tx.denom || ''
         });
     });
 
@@ -292,8 +212,67 @@ export const transformToSankeyData = (transactions, selectedAddress) => {
     };
 };
 
-// 주소 축약 함수
-export const shortenAddress = (address, prefixLength = 6, suffixLength = 4) => {
-    if (!address || address.length <= prefixLength + suffixLength) return address;
-    return `${address.substring(0, prefixLength)}...${address.substring(address.length - suffixLength)}`;
+// 데이터 형식 변환 함수
+export const normalizeTransactionData = (apiData) => {
+    if (!apiData) return { transactions: [], addressData: [] };
+
+    const transactions = [...apiData.top_nodes_json, ...apiData.related_nodes_json].map(tx => {
+        // 일관된 형식으로 변환
+        return {
+            txhash: tx.txhash || tx.hash || `tx-${Math.random().toString(36).substr(2, 9)}`,
+            fromAddress: tx.fromAddress || tx.from || '',
+            toAddress: tx.toAddress || tx.to || '',
+            amount: tx.amount || tx.value || 0,
+            timestamp: tx.timestamp || Date.now(),
+            fromChain: tx.fromChain || getChainFromAddress(tx.fromAddress || tx.from || ''),
+            toChain: tx.toChain || getChainFromAddress(tx.toAddress || tx.to || ''),
+            denom: tx.denom || tx.dpDenom || '',
+            dpDenom: tx.dpDenom || tx.denom || ''
+        };
+    });
+
+    const addressData = [...apiData.top_nodes_derived_json, ...apiData.related_nodes_derived_json].map(addr => {
+        // 일관된 형식으로 변환
+        return {
+            address: addr.address || addr.id || '',
+            id: addr.address || addr.id || '',
+            sent_tx_count: addr.sent_tx_count || 0,
+            recv_tx_count: addr.recv_tx_count || 0,
+            sent_tx_amount: addr.sent_tx_amount || addr.total_sent || 0,
+            recv_tx_amount: addr.recv_tx_amount || addr.total_received || 0,
+            pagerank: addr.pagerank || addr.final_score || 0.1,
+            final_score: addr.final_score || addr.pagerank || 0.1,
+            tier: addr.tier || getTierFromPageRank(addr.pagerank || addr.final_score || 0.1),
+            chain: addr.chain || getChainFromAddress(addr.address || addr.id || ''),
+            hour_entropy: addr.hour_entropy || 0,
+            active_days_count: addr.active_days_count || 0,
+            counterparty_count_sent: addr.counterparty_count_sent || 0,
+            counterparty_count_recv: addr.counterparty_count_recv || 0
+        };
+    });
+
+    return { transactions, addressData };
+};
+
+// 주소에서 체인 추출
+export const getChainFromAddress = (address) => {
+    if (!address || typeof address !== 'string') return 'unknown';
+
+    try {
+        // 첫 번째 '1' 또는 '.' 이전의 텍스트를 체인으로 간주
+        const dotIndex = address.indexOf('.');
+        const oneIndex = address.indexOf('1');
+
+        if (dotIndex > 0 && (oneIndex < 0 || dotIndex < oneIndex)) {
+            return address.substring(0, dotIndex);
+        } else if (oneIndex > 0) {
+            return address.substring(0, oneIndex);
+        }
+
+        // 그 외 경우, 첫 6자를 반환하거나 'unknown'
+        return address.length > 6 ? address.substring(0, 6) : 'unknown';
+    } catch (e) {
+        console.warn('Error extracting chain name:', e);
+        return 'unknown';
+    }
 };

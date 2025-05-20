@@ -1,89 +1,107 @@
-// src/App.jsx
 import React, { useState, useEffect } from 'react';
-import './App.css';
+import axios from 'axios';
 import NetworkGraph from './components/NetworkGraph/NetworkGraph';
 import NavigationBar from './components/NavigationBar/NavigationBar';
 import BottomSheet from './components/BottomSheet/BottomSheet';
-import {
-    fetchTransactions,
-    fetchAddressData,
-    initDataLoading,
-    getDataLoadingProgress,
-    cleanupData
-} from './services/api';
+import DateRangePicker from './components/DateRangePicker/DateRangePicker';
+import './App.css';
 
 function App() {
+    // 상태 관리
     const [transactions, setTransactions] = useState([]);
     const [addressData, setAddressData] = useState([]);
     const [selectedNode, setSelectedNode] = useState(null);
     const [bottomSheetOpen, setBottomSheetOpen] = useState(false);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(false);
     const [loadingProgress, setLoadingProgress] = useState(0);
     const [error, setError] = useState(null);
 
-    // 데이터 로드
+    // 필터 상태
+    const [batchWeight, setBatchWeight] = useState(50);
+    const [txCountWeight, setTxCountWeight] = useState(25);
+    const [txAmountWeight, setTxAmountWeight] = useState(25);
+    const [dateRange, setDateRange] = useState({
+        startDate: "2021-02-01",
+        endDate: "2021-02-22"
+    });
+
+    // API URL 설정
+    const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+
+    // 노드 데이터 로드 함수
+    const loadData = async (filters = {}) => {
+        setLoading(true);
+        setLoadingProgress(10); // 초기 진행률
+
+        try {
+            // 필터 설정
+            const requestData = {
+                start_date: dateRange.startDate,
+                end_date: dateRange.endDate,
+                batch_quant_weight: batchWeight,
+                tx_count_weight: txCountWeight,
+                tx_amount_weight: txAmountWeight,
+                top_n: 1,
+                ...filters
+            };
+
+            setLoadingProgress(30); // API 호출 시작
+
+            // API 호출
+            const response = await axios.post(`${API_URL}/get_nodes`, requestData);
+            const data = response.data;
+
+            setLoadingProgress(70); // 데이터 수신 완료
+
+            // 데이터 처리
+            const allTransactions = [...data.top_nodes_json, ...data.related_nodes_json];
+            const allAddressData = [...data.top_nodes_derived_json, ...data.related_nodes_derived_json];
+
+            // 주소 ID 매핑 (고유 식별자 설정)
+            const processedAddressData = allAddressData.map(addr => ({
+                ...addr,
+                id: addr.address, // id 필드 추가
+                // tier 속성이 없는 경우 'bronze'로 초기화
+                tier: addr.tier || 'bronze',
+                // pagerank 속성이 없는 경우 0으로 초기화
+                pagerank: addr.pagerank || addr.final_score || 0,
+                // 체인 정보 가져오기
+                chain: addr.chain || addr.address?.split('1')[0] || 'unknown',
+                // 거래 통계 필드 매핑
+                sent_tx_count: addr.sent_tx_count || 0,
+                recv_tx_count: addr.recv_tx_count || 0,
+                sent_tx_amount: addr.sent_tx_amount || 0,
+                recv_tx_amount: addr.recv_tx_amount || 0
+            }));
+
+            setTransactions(allTransactions);
+            setAddressData(processedAddressData);
+            setLoadingProgress(100); // 처리 완료
+            setError(null);
+
+        } catch (err) {
+            console.error('데이터 로드 오류:', err);
+            setError('데이터를 불러오는 중 오류가 발생했습니다.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // 초기 데이터 로드
     useEffect(() => {
-        const loadData = async () => {
-            setLoading(true);
-            try {
-                // 데이터 로딩 시작
-                initDataLoading();
-
-                // 진행률 업데이트 간격 설정
-                const progressInterval = setInterval(() => {
-                    const progress = getDataLoadingProgress();
-                    setLoadingProgress(progress);
-                }, 300);
-
-                // 데이터 로딩 완료 이벤트 리스너
-                const handleDataLoaded = (event) => {
-                    const { transactions, addressData } = event.detail;
-
-                    setTransactions(transactions);
-                    setAddressData(addressData);
-                    setLoading(false);
-                    setError(null);
-
-                    clearInterval(progressInterval);
-                    window.removeEventListener('dataLoaded', handleDataLoaded);
-                };
-
-                window.addEventListener('dataLoaded', handleDataLoaded);
-
-                // 직접 API 호출도 백업으로 유지
-                const [txData, addrData] = await Promise.all([
-                    fetchTransactions(),
-                    fetchAddressData()
-                ]);
-
-                // 이벤트가 발생하지 않은 경우를 대비
-                if (loading) {
-                    setTransactions(txData);
-                    setAddressData(addrData);
-                    setLoading(false);
-                    clearInterval(progressInterval);
-                }
-
-            } catch (err) {
-                console.error('Error loading data:', err);
-                setError('데이터를 불러오는 중 오류가 발생했습니다.');
-                setLoading(false);
-            }
-        };
-
         loadData();
-
-        // 컴포넌트 언마운트 시 리소스 정리
-        return () => {
-            cleanupData();
-        };
     }, []);
+
+    // 필터 변경 시 데이터 다시 로드
+    const handleFilterApply = () => {
+        loadData();
+    };
 
     // 노드 선택 처리
     const handleNodeSelect = (node) => {
         // 노드 유효성 검사
         if (!node) {
-            console.error('Invalid node selected:', node);
+            console.error('유효하지 않은 노드:', node);
             return;
         }
 
@@ -94,7 +112,7 @@ function App() {
 
         // id나 address 중 하나는 필요함
         if (!node.id && !node.address) {
-            console.error('Node has no identifier:', node);
+            console.error('식별자가 없는 노드:', node);
             return;
         }
 
@@ -107,6 +125,25 @@ function App() {
         setBottomSheetOpen(false);
     };
 
+    // 슬라이더 값 변경 핸들러
+    const handleBatchWeightChange = (value) => {
+        setBatchWeight(value);
+    };
+
+    const handleTxCountWeightChange = (value) => {
+        setTxCountWeight(value);
+    };
+
+    const handleTxAmountWeightChange = (value) => {
+        setTxAmountWeight(value);
+    };
+
+    // 날짜 범위 변경 핸들러
+    const handleDateRangeChange = (newRange) => {
+        setDateRange(newRange);
+    };
+
+    // 로딩 화면 렌더링
     if (loading) {
         return (
             <div className="loading-container">
@@ -122,18 +159,32 @@ function App() {
         );
     }
 
+    // 에러 화면 렌더링
     if (error) {
         return (
             <div className="error-container">
                 <h2>오류 발생</h2>
                 <p>{error}</p>
-                <button onClick={() => window.location.reload()}>새로고침</button>
+                <button onClick={() => loadData()}>새로고침</button>
             </div>
         );
     }
 
     return (
         <div className="app">
+            <div className="header">
+                <h1>블록체인 트랜잭션 시각화</h1>
+                <DateRangePicker
+                    dateRange={dateRange}
+                    onDateRangeChange={handleDateRangeChange}
+                />
+                <button
+                    className="apply-button"
+                    onClick={handleFilterApply}
+                >
+                    필터 적용
+                </button>
+            </div>
             <div className="main-content">
                 <div className="graph-container">
                     <NetworkGraph
@@ -144,7 +195,17 @@ function App() {
                     />
                 </div>
                 <div className="navigation-container">
-                    <NavigationBar onNodeSelect={handleNodeSelect} />
+                    <NavigationBar
+                        onNodeSelect={handleNodeSelect}
+                        batchWeight={batchWeight}
+                        txCountWeight={txCountWeight}
+                        txAmountWeight={txAmountWeight}
+                        onBatchWeightChange={handleBatchWeightChange}
+                        onTxCountWeightChange={handleTxCountWeightChange}
+                        onTxAmountWeightChange={handleTxAmountWeightChange}
+                        onApplyFilters={handleFilterApply}
+                        addressData={addressData}
+                    />
                 </div>
             </div>
 
