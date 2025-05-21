@@ -81,7 +81,7 @@ const StoryLineChart = ({ transactions, selectedAddress }) => {
         const participatingNodes = new Set([selectedAddress, ...topNodes]);
 
         // SVG 크기 설정
-        const margin = { top: 40, right: 30, bottom: 50, left: 50 };
+        const margin = { top: 40, right: 30, bottom: 50, left: 100 };
         const width = svgRef.current.clientWidth - margin.left - margin.right;
         const height = 300 - margin.top - margin.bottom;
 
@@ -211,8 +211,9 @@ const StoryLineChart = ({ transactions, selectedAddress }) => {
                 .attr("y", margin.top + nodeScale(nodeAddress) + nodeScale.bandwidth() / 2)
                 .attr("dy", "0.32em")
                 .attr("text-anchor", "end")
-                .attr("fill", getChainColor(chainName))
+                .attr("fill", "black")
                 .attr("font-weight", nodeAddress === selectedAddress ? "bold" : "normal")
+                .style("font-family", "Arial, Helvetica, sans-serif")
                 .text(shortenAddress(nodeAddress, 6, 4));
         });
 
