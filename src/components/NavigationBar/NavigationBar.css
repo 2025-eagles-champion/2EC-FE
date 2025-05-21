@@ -65,9 +65,10 @@
 }
 
 .top-n-container .slider-value {
+    text-align: center;
     background-color: #4dabf7;
     color: white;
-    padding: 2px 8px;
+    padding: 2px 11px;
     border-radius: 10px;
     font-size: 0.85rem;
 }
