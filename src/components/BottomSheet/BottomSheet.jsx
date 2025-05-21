@@ -428,7 +428,7 @@ const BottomSheet = ({
 
                             {/* StoryLineChart 컴포넌트 추가 */}
                             <div className="storyline-section">
-                                <h4>시간에 따른 체인 거래 흐름</h4>
+                                <h4>시간에 따른 계정 간 거래 흐름</h4>
                                 <StoryLineChart
                                     transactions={nodeTransactions}
                                     selectedAddress={
