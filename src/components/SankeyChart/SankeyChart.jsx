@@ -9,346 +9,129 @@ import { shortenAddress } from "../../utils/dataUtils";
 const SankeyChart = ({ transactions, selectedAddress, addressData }) => {
     const svgRef = useRef(null);
 
-    // 샌키 차트용 데이터 변환 (2-depth 제한)
     const sankeyData = useMemo(() => {
         if (!transactions || !selectedAddress || transactions.length === 0) {
             return { nodes: [], links: [] };
         }
 
-        // 관련 트랜잭션 필터링 및 깊이 계산
-        const relevantTxs = transactions.filter((tx) => {
-            // 선택된 노드와 직접 관련된 거래만 포함
-            return (
-                tx.fromAddress === selectedAddress ||
-                tx.toAddress === selectedAddress
-            );
-        });
-
-        // 주소 맵 생성 (고유한 노드 구성)
         const nodeMap = new Map();
+        const newLinks = [];
 
-        // 선택된 노드를 중심으로 2-depth 노드들 식별
-        const selectedNode = addressData.find(
+        // 1. 중심 노드 (selectedAddress) - depth: 1
+        const selectedNodeInfo = addressData.find(
             (addr) =>
                 addr.address === selectedAddress || addr.id === selectedAddress
         );
+        nodeMap.set(selectedAddress, {
+            id: selectedAddress,
+            name: shortenAddress(selectedAddress, 5, 4), //
+            chain:
+                selectedNodeInfo?.chain ||
+                selectedAddress.split("1")[0] ||
+                "unknown", //
+            tier: selectedNodeInfo?.tier || "bronze", //
+            depth: 1, // 중심 노드는 depth 1로 명시
+        });
 
-        // 먼저 중심 노드 추가
-        if (selectedNode) {
-            nodeMap.set(selectedAddress, {
-                id: selectedAddress,
-                name: shortenAddress(selectedAddress, 5, 4),
-                chain:
-                    selectedNode.chain ||
-                    selectedAddress.split("1")[0] ||
-                    "unknown",
-                depth: 0, // 중심 노드
-                tier: selectedNode.tier || "bronze",
-            });
-        } else {
-            // 중심 노드 정보가 없을 경우 기본값으로 설정
-            nodeMap.set(selectedAddress, {
-                id: selectedAddress,
-                name: shortenAddress(selectedAddress, 5, 4),
-                chain: selectedAddress.split("1")[0] || "unknown",
-                depth: 0,
-                tier: "bronze",
-            });
-        }
-
-        // 1-depth 수신/발신 노드 추가
-        relevantTxs.forEach((tx) => {
-            if (tx.fromAddress === selectedAddress) {
-                // 발신 노드인 경우 수신자를 1-depth로 추가
-                if (!nodeMap.has(tx.toAddress)) {
-                    const node = addressData.find(
-                        (addr) =>
-                            addr.address === tx.toAddress ||
-                            addr.id === tx.toAddress
-                    );
-                    nodeMap.set(tx.toAddress, {
-                        id: tx.toAddress,
-                        name: shortenAddress(tx.toAddress, 5, 4),
-                        chain:
-                            tx.toChain ||
-                            tx.toAddress.split("1")[0] ||
-                            "unknown",
-                        depth: 1, // 1-depth
-                        tier: node?.tier || "bronze",
-                        direction: "out", // 중심 노드에서 나가는 방향
-                    });
-                }
-            } else if (tx.toAddress === selectedAddress) {
-                // 수신 노드인 경우 발신자를 1-depth로 추가
+        // 2. 관련 트랜잭션 필터링하여 입력(depth 0) 및 출력(depth 2) 노드와 링크 구성
+        transactions.forEach((tx) => {
+            // 선택된 노드로 들어오는 거래 (입력 노드)
+            if (tx.toAddress === selectedAddress) {
                 if (!nodeMap.has(tx.fromAddress)) {
-                    const node = addressData.find(
+                    const sourceNodeInfo = addressData.find(
                         (addr) =>
                             addr.address === tx.fromAddress ||
                             addr.id === tx.fromAddress
                     );
                     nodeMap.set(tx.fromAddress, {
                         id: tx.fromAddress,
-                        name: shortenAddress(tx.fromAddress, 5, 4),
+                        name: shortenAddress(tx.fromAddress, 5, 4), //
                         chain:
+                            sourceNodeInfo?.chain ||
                             tx.fromChain ||
                             tx.fromAddress.split("1")[0] ||
-                            "unknown",
-                        depth: 1, // 1-depth
-                        tier: node?.tier || "bronze",
-                        direction: "in", // 중심 노드로 들어오는 방향
+                            "unknown", //
+                        tier: sourceNodeInfo?.tier || "bronze", //
+                        depth: 0, // 입력 노드는 depth 0으로 명시
                     });
                 }
+                newLinks.push({
+                    source: tx.fromAddress,
+                    target: selectedAddress,
+                    value: tx.amount || 1, //
+                    denom: tx.dpDenom || tx.denom || "", //
+                });
             }
-        });
-
-        // 2-depth 노드 추가
-        // 1-depth 노드들의 관련 거래 확인
-        const depth1Addresses = Array.from(nodeMap.values())
-            .filter((node) => node.depth === 1)
-            .map((node) => node.id);
-
-        // 2-depth 노드 추가를 위한 추가 트랜잭션 필터링
-        const depth2Txs = transactions.filter(
-            (tx) =>
-                (depth1Addresses.includes(tx.fromAddress) &&
-                    tx.toAddress !== selectedAddress) ||
-                (depth1Addresses.includes(tx.toAddress) &&
-                    tx.fromAddress !== selectedAddress)
-        );
-
-        // 2-depth 노드 추가 (상위 20개만 추가)
-        const depth2Counter = new Map(); // 거래량 집계
-
-        depth2Txs.forEach((tx) => {
-            // 1-depth 노드에서 발신하는 거래
-            if (
-                depth1Addresses.includes(tx.fromAddress) &&
-                tx.toAddress !== selectedAddress
-            ) {
+            // 선택된 노드에서 나가는 거래 (출력 노드)
+            else if (tx.fromAddress === selectedAddress) {
                 if (!nodeMap.has(tx.toAddress)) {
-                    const amount = tx.amount || 0;
-                    depth2Counter.set(
-                        tx.toAddress,
-                        (depth2Counter.get(tx.toAddress) || 0) + amount
+                    const targetNodeInfo = addressData.find(
+                        (addr) =>
+                            addr.address === tx.toAddress ||
+                            addr.id === tx.toAddress
                     );
+                    nodeMap.set(tx.toAddress, {
+                        id: tx.toAddress,
+                        name: shortenAddress(tx.toAddress, 5, 4), //
+                        chain:
+                            targetNodeInfo?.chain ||
+                            tx.toChain ||
+                            tx.toAddress.split("1")[0] ||
+                            "unknown", //
+                        tier: targetNodeInfo?.tier || "bronze", //
+                        depth: 2, // 출력 노드는 depth 2로 명시
+                    });
                 }
-            }
-            // 1-depth 노드로 수신되는 거래
-            else if (
-                depth1Addresses.includes(tx.toAddress) &&
-                tx.fromAddress !== selectedAddress
-            ) {
-                if (!nodeMap.has(tx.fromAddress)) {
-                    const amount = tx.amount || 0;
-                    depth2Counter.set(
-                        tx.fromAddress,
-                        (depth2Counter.get(tx.fromAddress) || 0) + amount
-                    );
-                }
-            }
-        });
-
-        // 상위 거래량 2-depth 노드 추가 (상위 10개)
-        const top2DepthNodes = Array.from(depth2Counter.entries())
-            .sort((a, b) => b[1] - a[1])
-            .slice(0, 10);
-
-        top2DepthNodes.forEach(([address, amount]) => {
-            // 해당 주소 관련 거래 찾기
-            const relatedTx = depth2Txs.find(
-                (tx) => tx.fromAddress === address || tx.toAddress === address
-            );
-
-            if (relatedTx) {
-                const isSource = relatedTx.fromAddress === address;
-                const node = addressData.find(
-                    (addr) => addr.address === address || addr.id === address
-                );
-
-                nodeMap.set(address, {
-                    id: address,
-                    name: shortenAddress(address, 4, 3),
-                    chain: isSource
-                        ? relatedTx.fromChain
-                        : relatedTx.toChain ||
-                          address.split("1")[0] ||
-                          "unknown",
-                    depth: 2, // 2-depth
-                    tier: node?.tier || "bronze",
-                    direction: isSource ? "in" : "out", // 중심 노드 기준 방향
-                    amount: amount, // 집계된 거래량
-                });
-            }
-        });
-
-        // 2-depth 노드들의 관련 거래 확인
-        const depth2Addresses = Array.from(nodeMap.values())
-            .filter((node) => node.depth === 2)
-            .map((node) => node.id);
-
-        // 3-depth 노드 추가를 위한 추가 트랜잭션 필터링
-        const depth3Txs = transactions.filter(
-            (tx) =>
-                (depth2Addresses.includes(tx.fromAddress) &&
-                    !nodeMap.has(tx.toAddress) &&
-                    tx.toAddress !== selectedAddress) ||
-                (depth2Addresses.includes(tx.toAddress) &&
-                    !nodeMap.has(tx.fromAddress) &&
-                    tx.fromAddress !== selectedAddress)
-        );
-
-        // 3-depth 노드 추가 (상위 5개만 추가)
-        const depth3Counter = new Map();
-
-        // 거래량 집계
-        depth3Txs.forEach((tx) => {
-            // 2-depth 노드에서 발신하는 거래
-            if (
-                depth2Addresses.includes(tx.fromAddress) &&
-                !nodeMap.has(tx.toAddress) &&
-                tx.toAddress !== selectedAddress
-            ) {
-                const amount = tx.amount || 0;
-                depth3Counter.set(
-                    tx.toAddress,
-                    (depth3Counter.get(tx.toAddress) || 0) + amount
-                );
-            }
-            // 2-depth 노드로 수신되는 거래
-            else if (
-                depth2Addresses.includes(tx.toAddress) &&
-                !nodeMap.has(tx.fromAddress) &&
-                tx.fromAddress !== selectedAddress
-            ) {
-                const amount = tx.amount || 0;
-                depth3Counter.set(
-                    tx.fromAddress,
-                    (depth3Counter.get(tx.fromAddress) || 0) + amount
-                );
-            }
-        });
-
-        // 상위 거래량 3-depth 노드 추가 (상위 5개)
-        const top3DepthNodes = Array.from(depth3Counter.entries())
-            .sort((a, b) => b[1] - a[1])
-            .slice(0, 2);
-
-        top3DepthNodes.forEach(([address, amount]) => {
-            // 해당 주소 관련 거래 찾기
-            const relatedTx = depth3Txs.find(
-                (tx) => tx.fromAddress === address || tx.toAddress === address
-            );
-
-            if (relatedTx) {
-                const isSource = relatedTx.fromAddress === address;
-                const node = addressData.find(
-                    (addr) => addr.address === address || addr.id === address
-                );
-
-                nodeMap.set(address, {
-                    id: address,
-                    name: shortenAddress(address, 3, 3), // 더 짧게 표시
-                    chain: isSource
-                        ? relatedTx.fromChain
-                        : relatedTx.toChain ||
-                          address.split("1")[0] ||
-                          "unknown",
-                    depth: 3, // 3-depth
-                    tier: node?.tier || "bronze",
-                    direction: isSource ? "in" : "out",
-                    amount: amount,
-                });
-            }
-        });
-
-        // 링크 생성
-        const links = [];
-
-        // 중심 노드와 1-depth 노드 간 링크
-        relevantTxs.forEach((tx) => {
-            if (
-                tx.fromAddress === selectedAddress &&
-                nodeMap.has(tx.toAddress)
-            ) {
-                links.push({
-                    source: tx.fromAddress,
+                newLinks.push({
+                    source: selectedAddress,
                     target: tx.toAddress,
-                    value: tx.amount || 1,
-                    denom: tx.dpDenom || tx.denom || "",
-                });
-            } else if (
-                tx.toAddress === selectedAddress &&
-                nodeMap.has(tx.fromAddress)
-            ) {
-                links.push({
-                    source: tx.fromAddress,
-                    target: tx.toAddress,
-                    value: tx.amount || 1,
-                    denom: tx.dpDenom || tx.denom || "",
-                });
-            }
-        });
-
-        // 1-depth와 2-depth 노드 간 링크
-        depth2Txs.forEach((tx) => {
-            if (nodeMap.has(tx.fromAddress) && nodeMap.has(tx.toAddress)) {
-                // 이미 추가된 노드들 간의 링크만 추가
-                links.push({
-                    source: tx.fromAddress,
-                    target: tx.toAddress,
-                    value: tx.amount || 1,
-                    denom: tx.dpDenom || tx.denom || "",
-                });
-            }
-        });
-
-        // 2-depth와 3-depth 노드 간 링크 (NEW!)
-        depth3Txs.forEach((tx) => {
-            if (nodeMap.has(tx.fromAddress) && nodeMap.has(tx.toAddress)) {
-                // 이미 추가된 노드들 간의 링크만 추가
-                links.push({
-                    source: tx.fromAddress,
-                    target: tx.toAddress,
-                    value: tx.amount || 1,
-                    denom: tx.dpDenom || tx.denom || "",
+                    value: tx.amount || 1, //
+                    denom: tx.dpDenom || tx.denom || "", //
                 });
             }
         });
 
         // 링크 집계 (동일 소스-타겟 간 링크 합산)
         const aggregatedLinks = [];
-        const linkMap = new Map();
+        const linkAggMap = new Map();
 
-        links.forEach((link) => {
+        newLinks.forEach((link) => {
             const linkId = `${link.source}-${link.target}`;
-            if (linkMap.has(linkId)) {
-                linkMap.get(linkId).value += link.value;
+            if (linkAggMap.has(linkId)) {
+                linkAggMap.get(linkId).value += link.value;
             } else {
-                linkMap.set(linkId, { ...link });
+                linkAggMap.set(linkId, { ...link });
             }
         });
+        aggregatedLinks.push(...linkAggMap.values());
 
-        // 최종 집계된 링크
-        aggregatedLinks.push(...linkMap.values());
+        // depth 값에 따라 노드를 필터링하여 반환 (선택 사항, 현재는 모든 노드 반환)
+        // 만약 정확히 3단계만 표시하고 싶다면, depth가 0, 1, 2인 노드만 필터링할 수 있습니다.
+        const finalNodes = Array.from(nodeMap.values()).filter(node => 
+            node.depth === 0 || node.depth === 1 || node.depth === 2
+        );
+
+        // 필터링된 노드에 해당하는 링크만 남기기
+        const finalNodeIds = new Set(finalNodes.map(n => n.id));
+        const finalLinks = aggregatedLinks.filter(link => 
+            finalNodeIds.has(link.source) && finalNodeIds.has(link.target)
+        );
+
 
         console.log(
-            "Generated nodes by depth:",
-            Array.from(nodeMap.values()).reduce((acc, node) => {
+            "Generated nodes by strict depth:",
+            finalNodes.reduce((acc, node) => {
                 acc[node.depth] = (acc[node.depth] || 0) + 1;
                 return acc;
             }, {})
         );
-        console.log(
-            "3-depth nodes:",
-            Array.from(nodeMap.values()).filter((node) => node.depth === 3)
-        );
 
         return {
-            nodes: Array.from(nodeMap.values()),
-            links: aggregatedLinks,
+            nodes: finalNodes,
+            links: finalLinks,
         };
     }, [transactions, selectedAddress, addressData]);
-
+    
     // 순환 참조 링크 감지 및 제거 함수
     const removeCyclicLinks = (data) => {
         if (!data || !data.nodes || !data.links) {
@@ -475,7 +258,7 @@ const SankeyChart = ({ transactions, selectedAddress, addressData }) => {
             const sankeyLinks = links.map((link) => ({
                 source: nodeMap[link.source],
                 target: nodeMap[link.target],
-                value: Math.max(0.1, link.value), // 최소값 설정
+                value: Math.log(Math.max(1, link.value) + 1), // 최소값 설정
             }));
 
             // 최종 데이터 준비
