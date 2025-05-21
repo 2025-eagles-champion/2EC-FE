@@ -1,5 +1,5 @@
 // src/components/StoryLineChart/StoryLineChart.jsx
-import React, { useEffect, useRef, useMemo } from "react";
+import React, { useEffect, useRef, useState, useMemo } from "react";
 import * as d3 from "d3";
 import "./StoryLineChart.css";
 import { getChainColor } from "../../utils/colorUtils";
@@ -12,7 +12,7 @@ import { shortenAddress } from "../../utils/dataUtils";
  */
 const StoryLineChart = ({ transactions, selectedAddress }) => {
     const svgRef = useRef(null);
-
+    
     // 선택된 노드와 거래량이 가장 많은 최대 8개 노드를 찾아내는 로직
     const topNodeData = useMemo(() => {
         if (!transactions || !selectedAddress || transactions.length === 0) {
@@ -91,9 +91,32 @@ const StoryLineChart = ({ transactions, selectedAddress }) => {
         // SVG 생성
         const svg = d3.select(svgRef.current)
             .attr("width", width + margin.left + margin.right)
-            .attr("height", height + margin.top + margin.bottom)
-            .append("g")
+            .attr("height", height + margin.top + margin.bottom);
+            
+        // 마우스 휠 이벤트 메시지 추가
+        svg.append("text")
+            .attr("x", width / 2 + margin.left)
+            .attr("y", margin.top - 20)
+            .attr("text-anchor", "middle")
+            .attr("font-size", "11px")
+            .attr("fill", "#6c757d")
+            .text("마우스 휠: 확대/축소  |  드래그: 좌우 이동");
+        
+        // 메인 그룹 생성
+        const g = svg.append("g")
+            .attr("class", "main-chart-group")
             .attr("transform", `translate(${margin.left},${margin.top})`);
+        
+        // 클리핑 패스 추가
+        svg.append("defs").append("clipPath")
+            .attr("id", "clip")
+            .append("rect")
+            .attr("width", width)
+            .attr("height", height);
+        
+        // 클리핑 패스 적용할 그룹
+        const chartArea = g.append("g")
+            .attr("clip-path", "url(#clip)");
 
         // 시간 범위 계산
         const minTime = d3.min(relevantTxs, d => d.timestamp);
@@ -105,7 +128,7 @@ const StoryLineChart = ({ transactions, selectedAddress }) => {
         const maxTimeAdjusted = maxTime + timeRange * 0.1;
 
         // X축 (시간) 스케일 정의
-        const timeScale = d3.scaleTime()
+        const xScale = d3.scaleTime()
             .domain([new Date(minTimeAdjusted), new Date(maxTimeAdjusted)])
             .range([0, width]);
 
@@ -116,20 +139,20 @@ const StoryLineChart = ({ transactions, selectedAddress }) => {
             .range([0, height])
             .padding(0.3);
 
-        // X축 (시간) 추가
-        svg.append("g")
+        // X축 생성
+        const xAxis = g.append("g")
             .attr("class", "x-axis")
             .attr("transform", `translate(0,${height})`)
-            .call(d3.axisBottom(timeScale)
-                .ticks(5)
-                .tickFormat(d3.timeFormat("%m/%d %H:%M")))
-            .selectAll("text")
+            .call(d3.axisBottom(xScale).tickFormat(d3.timeFormat("%m/%d %H:%M")));
+        
+        // X축 레이블 회전
+        xAxis.selectAll("text")
             .attr("y", 10)
             .attr("transform", "rotate(0)")
             .style("text-anchor", "middle");
 
         // X축 레이블
-        svg.append("text")
+        g.append("text")
             .attr("class", "x-label")
             .attr("x", width / 2)
             .attr("y", height + 40)
@@ -149,7 +172,8 @@ const StoryLineChart = ({ transactions, selectedAddress }) => {
                 nodeAddress.split('1')[0];
 
             // 레인 배경
-            svg.append("rect")
+            chartArea.append("rect")
+                .attr("class", "lane-background")
                 .attr("x", 0)
                 .attr("y", nodeScale(nodeAddress))
                 .attr("width", width)
@@ -158,7 +182,8 @@ const StoryLineChart = ({ transactions, selectedAddress }) => {
                 .attr("fill-opacity", 0.05);
 
             // 레인 중심선
-            svg.append("line")
+            chartArea.append("line")
+                .attr("class", "lane-center-line")
                 .attr("x1", 0)
                 .attr("y1", nodeScale(nodeAddress) + nodeScale.bandwidth() / 2)
                 .attr("x2", width)
@@ -170,7 +195,8 @@ const StoryLineChart = ({ transactions, selectedAddress }) => {
 
             // 선택된 노드인 경우 강조
             if (nodeAddress === selectedAddress) {
-                svg.append("rect")
+                g.append("rect")
+                    .attr("class", "selected-node-marker")
                     .attr("x", -margin.left)
                     .attr("y", nodeScale(nodeAddress))
                     .attr("width", 3)
@@ -180,8 +206,9 @@ const StoryLineChart = ({ transactions, selectedAddress }) => {
 
             // 노드 주소 라벨
             svg.append("text")
-                .attr("x", -10)
-                .attr("y", nodeScale(nodeAddress) + nodeScale.bandwidth() / 2)
+                .attr("class", "node-label")
+                .attr("x", margin.left - 10)
+                .attr("y", margin.top + nodeScale(nodeAddress) + nodeScale.bandwidth() / 2)
                 .attr("dy", "0.32em")
                 .attr("text-anchor", "end")
                 .attr("fill", getChainColor(chainName))
@@ -206,8 +233,18 @@ const StoryLineChart = ({ transactions, selectedAddress }) => {
                 .style("z-index", "10000");
         }
 
+        // 거래 노드 그룹
+        const txNodeGroup = chartArea.append("g")
+            .attr("class", "tx-nodes");
+
+        // 노드 간 곡선 생성 함수 정의
+        const curve = d3.line()
+            .x(d => d.x)
+            .y(d => d.y)
+            .curve(d3.curveBasis);
+
         // 트랜잭션 시각화 (노드 간 연결 및 이벤트)
-        relevantTxs.forEach((tx, i) => {
+        relevantTxs.forEach(tx => {
             // 노드 크기 계산 (거래량에 따라)
             const nodeRadius = Math.max(3, Math.min(8, Math.log(tx.amount || 1) + 2));
             const strokeWidth = Math.max(1, Math.min(4, Math.log(tx.amount || 1) + 1));
@@ -216,17 +253,11 @@ const StoryLineChart = ({ transactions, selectedAddress }) => {
             const txTime = new Date(tx.timestamp);
             const fromY = nodeScale(tx.fromAddress) + nodeScale.bandwidth() / 2;
             const toY = nodeScale(tx.toAddress) + nodeScale.bandwidth() / 2;
-            const x = timeScale(txTime);
+            const x = xScale(txTime);
 
             // 발신 노드가 선택된 노드인지
             const isFromSelected = tx.fromAddress === selectedAddress;
             
-            // 노드 간 거래 표시 (곡선 연결)
-            const curve = d3.line()
-                .x(d => d.x)
-                .y(d => d.y)
-                .curve(d3.curveBasis);
-
             // 중간 제어점 정의 (곡선을 위한)
             const controlPoints = [
                 { x: x, y: fromY },
@@ -236,7 +267,8 @@ const StoryLineChart = ({ transactions, selectedAddress }) => {
             ];
 
             // 연결선 그리기
-            svg.append("path")
+            txNodeGroup.append("path")
+                .attr("class", "tx-path")
                 .datum(controlPoints)
                 .attr("d", curve)
                 .attr("stroke", d3.interpolateRgb(
@@ -248,7 +280,7 @@ const StoryLineChart = ({ transactions, selectedAddress }) => {
                 .attr("fill", "none");
 
             // 발신 노드 그리기
-            const fromNodeGroup = svg.append("g")
+            const fromNodeGroup = txNodeGroup.append("g")
                 .attr("class", "tx-node-group")
                 .attr("transform", `translate(${x},${fromY})`);
 
@@ -317,7 +349,7 @@ const StoryLineChart = ({ transactions, selectedAddress }) => {
                 });
 
             // 수신 노드 그리기
-            const toNodeGroup = svg.append("g")
+            const toNodeGroup = txNodeGroup.append("g")
                 .attr("class", "tx-node-group")
                 .attr("transform", `translate(${x},${toY})`);
 
@@ -386,9 +418,29 @@ const StoryLineChart = ({ transactions, selectedAddress }) => {
                 });
         });
 
+        // 제목
+        svg.append("text")
+            .attr("x", margin.left + width / 2)
+            .attr("y", 20)
+            .attr("text-anchor", "middle")
+            .attr("font-size", "14px")
+            .attr("font-weight", "bold")
+            .text("거래량 상위 노드와의 거래 흐름");
+
+        // 정보 텍스트
+        if (topNodes.length > 0) {
+            svg.append("text")
+                .attr("x", margin.left + width / 2)
+                .attr("y", 35)
+                .attr("text-anchor", "middle")
+                .attr("font-size", "11px")
+                .attr("fill", "#666")
+                .text(`선택된 노드와 거래량이 가장 많은 ${topNodes.length}개 노드 표시`);
+        }
+
         // 범례 추가
         const legendGroup = svg.append("g")
-            .attr("transform", `translate(${width - 240}, -35)`);
+            .attr("transform", `translate(${margin.left + width - 240}, ${margin.top - 35})`);
 
         // 노드 유형 범례
         const legendData = [
@@ -431,27 +483,87 @@ const StoryLineChart = ({ transactions, selectedAddress }) => {
                 .style("font-size", "9px")
                 .text(item.label);
         });
-
-        // 제목
-        svg.append("text")
-            .attr("x", width / 2)
-            .attr("y", -20)
-            .attr("text-anchor", "middle")
-            .attr("font-size", "14px")
-            .attr("font-weight", "bold")
-            .text("거래량 상위 노드와의 거래 흐름");
-
-        // 정보 텍스트
-        if (topNodes.length > 0) {
-            svg.append("text")
-                .attr("x", width / 2)
-                .attr("y", -5)
-                .attr("text-anchor", "middle")
-                .attr("font-size", "11px")
-                .attr("fill", "#666")
-                .text(`선택된 노드와 거래량이 가장 많은 ${topNodes.length}개 노드 표시`);
-        }
-
+        
+        // 확대/축소 및 패닝을 위한 줌 설정
+        const zoom = d3.zoom()
+            .scaleExtent([0.5, 10]) // 최소 0.5배, 최대 10배 확대/축소
+            .extent([[0, 0], [width, height]])
+            .on("zoom", function(event) {
+                // 현재 변환 값 가져오기
+                const transform = event.transform;
+                
+                // 새로운 x축 스케일 생성
+                const newXScale = transform.rescaleX(xScale);
+                
+                // x축 업데이트
+                xAxis.call(
+                    d3.axisBottom(newXScale)
+                        .tickFormat(d3.timeFormat("%m/%d %H:%M"))
+                );
+                
+                // 모든 트랜잭션 노드와 경로 업데이트
+                txNodeGroup.selectAll(".tx-node-group")
+                    .attr("transform", function() {
+                        // 현재 transform 속성 파싱
+                        const transform = d3.select(this).attr("transform");
+                        const match = transform.match(/translate\(([^,]+),([^)]+)/);
+                        
+                        if (!match) return transform;
+                        
+                        // 원래 좌표
+                        const x = parseFloat(match[1]);
+                        const y = parseFloat(match[2]);
+                        
+                        // x좌표만 변환
+                        const newX = event.transform.applyX(x);
+                        
+                        return `translate(${newX},${y})`;
+                    });
+                
+                // 경로 업데이트
+                txNodeGroup.selectAll(".tx-path")
+                    .attr("d", function(d) {
+                        // 기존 컨트롤 포인트 가져오기
+                        const points = d3.select(this).datum();
+                        
+                        // x좌표만 변환한 새 포인트 생성
+                        const newPoints = points.map(point => ({
+                            x: event.transform.applyX(point.x),
+                            y: point.y
+                        }));
+                        
+                        return curve(newPoints);
+                    });
+                
+                // 배경 레인과 중심선도 업데이트
+                chartArea.selectAll(".lane-background")
+                    .attr("width", width / transform.k)
+                    .attr("x", transform.x < 0 ? -transform.x / transform.k : 0);
+                
+                chartArea.selectAll(".lane-center-line")
+                    .attr("x1", transform.x < 0 ? -transform.x / transform.k : 0)
+                    .attr("x2", (transform.x < 0 ? -transform.x : 0) / transform.k + width / transform.k);
+            });
+        
+        // SVG 요소에 줌 적용
+        svg.call(zoom)
+            .on("wheel.zoom", function(event) {
+                // 휠 이벤트가 있을 때 확대/축소하고 기본 동작 방지
+                event.preventDefault();
+                zoom.scaleBy(svg, event.deltaY > 0 ? 0.9 : 1.1);
+            })
+            .on("dblclick.zoom", null); // 더블 클릭 확대/축소 비활성화
+        
+        // 드래그 시작할 때 커서 변경
+        svg.on("mousedown", function() {
+            d3.select(this).style("cursor", "grabbing");
+        });
+        
+        // 드래그 종료할 때 커서 복원
+        svg.on("mouseup", function() {
+            d3.select(this).style("cursor", "grab");
+        });
+            
         // Clean up
         return () => {
             // 툴팁 제거하지 않고 유지 - 여러 번 생성 방지
