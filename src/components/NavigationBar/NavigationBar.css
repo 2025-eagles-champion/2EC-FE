@@ -11,14 +11,14 @@
 
 .filter-section {
     height: auto;
-    max-height: 50%;
+    max-height: 75%;
     padding: 20px;
     border-bottom: 1px solid #dee2e6;
     overflow-y: auto;
 }
 
 .nodes-section {
-    height: 50%;
+    height: 25%;
     padding: 20px;
     overflow-y: hidden;
     flex-grow: 1;
@@ -51,6 +51,32 @@
     display: inline-block;
     font-weight: bold;
     color: #212529;
+    min-width: 30px;
+    text-align: right;
+}
+
+/* Top-N 슬라이더를 위한 특별 스타일 */
+.top-n-container {
+    background-color: rgba(77, 171, 247, 0.05);
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(77, 171, 247, 0.2);
+    margin-bottom: 20px;
+}
+
+.top-n-container .slider-value {
+    background-color: #4dabf7;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 0.85rem;
+}
+
+.top-n-description {
+    margin-top: 8px;
+    font-size: 0.8rem;
+    color: #6c757d;
+    text-align: center;
 }
 
 h3 {

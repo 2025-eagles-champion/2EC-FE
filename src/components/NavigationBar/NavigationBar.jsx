@@ -13,7 +13,9 @@ const NavigationBar = ({
                            weights,
                            dateRange,
                            onDateRangeChange,
-                           onFilterApply
+                           onFilterApply,
+                           topN,
+                           onTopNChange
                        }) => {
     // App.jsx에서 받은 weights 사용
     const { batchWeight, txCountWeight, txAmountWeight } = weights || {
@@ -36,7 +38,9 @@ const NavigationBar = ({
             "Calculating top nodes with weights:",
             batchWeight,
             txCountWeight,
-            txAmountWeight
+            txAmountWeight,
+            "Top-N:",
+            topN
         );
 
         setLoading(true);
@@ -49,7 +53,7 @@ const NavigationBar = ({
                     batchWeight,
                     txCountWeight,
                     txAmountWeight,
-                    10
+                    topN * 10  // topN 값에 따라 노드 수를 조정 (1당 10개 노드)
                 );
                 console.log("Top nodes calculated:", nodes);
                 setTopNodes(nodes);
@@ -59,7 +63,7 @@ const NavigationBar = ({
                 setLoading(false);
             }
         }, 0);
-    }, [batchWeight, txCountWeight, txAmountWeight, addressData]);
+    }, [batchWeight, txCountWeight, txAmountWeight, addressData, topN]);
 
     // 슬라이더 값 변경 핸들러
     const handleBatchWeightChange = (value) => {
@@ -77,12 +81,35 @@ const NavigationBar = ({
         onFilterChange.txAmountWeight(value);
     };
 
+    const handleTopNChange = (value) => {
+        console.log("Top N changed to:", value);
+        onTopNChange(value);
+    };
+
     console.log("NavigationBar rendering with top nodes:", topNodes?.length);
 
     return (
         <div className="navigation-bar">
             <div className="filter-section">
                 <h3>필터 설정</h3>
+                <div className="slider-container top-n-container">
+                    <div className="slider-flex">
+                        <label>상위 노드 수 (Top-N)</label>
+                        <span className="slider-value">{topN}</span>
+                    </div>
+                    <Slider
+                        label="상위 노드 수"
+                        value={topN}
+                        onChange={handleTopNChange}
+                        min={1}
+                        max={4}
+                        step={1}
+                    />
+                    <div className="top-n-description">
+                        Top-{topN}은 가중치가 적용된 상위 {topN}개 노드를 의미합니다
+                    </div>
+                </div>
+
                 <div className="slider-container">
                     <div className="slider-flex">
                         <label>배치/퀀트 가중치</label>
@@ -140,22 +167,10 @@ const NavigationBar = ({
                 </div>
             </div>
             <div className="nodes-section">
-                <h3>Top10 노드 목록 ({topNodes?.length || 0}개)</h3>
-                {loading ? (
-                    <div className="loading">노드 목록 로딩 중...</div>
-                ) : (
-                    <div className="node-list-container">
-                        <NodeList
-                            addressData={addressData}
-                            topNodes={topNodes}
-                            loading={loading}
-                            onNodeSelect={onNodeSelect}
-                        />
-                    </div>
-                )}
+                <h3>Top-{topN} 노드 목록 ({topNodes?.length || 0}</h3>
             </div>
         </div>
-    );
+    )
 };
 
 export default NavigationBar;

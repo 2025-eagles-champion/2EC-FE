@@ -7,6 +7,9 @@ const Slider = ({ value, onChange, min = 0, max = 100, step = 1 }) => {
         onChange(parseInt(e.target.value, 10));
     };
 
+    // 퍼센트 계산 - min, max 값이 변경되어도 정확하게 작동하도록 함
+    const fillPercentage = ((value - min) / (max - min)) * 100;
+
     return (
         <div className="custom-slider">
             <input
@@ -21,7 +24,7 @@ const Slider = ({ value, onChange, min = 0, max = 100, step = 1 }) => {
             <div className="slider-track">
                 <div
                     className="slider-fill"
-                    style={{ width: `${((value - min) / (max - min)) * 100}%` }}
+                    style={{ width: `${fillPercentage}%` }}
                 ></div>
             </div>
         </div>

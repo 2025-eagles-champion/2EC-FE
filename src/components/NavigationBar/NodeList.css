@@ -1,5 +1,8 @@
 .node-list {
     width: 100%;
+    list-style: none;
+    padding: 0;
+    margin: 0;
 }
 
 .node-list ul {
@@ -8,7 +11,7 @@
     margin: 0;
 }
 
-.node-list li {
+.node-list .node-item {
     display: flex;
     align-items: center;
     padding: 12px;
@@ -17,7 +20,7 @@
     transition: background-color 0.2s;
 }
 
-.node-list li:hover {
+.node-list .node-item:hover {
     background-color: #f1f3f5;
 }
 
@@ -102,6 +105,12 @@
     color: #212529;
     min-width: 25px;
     text-align: right;
+}
+
+.loading-indicator {
+    padding: 20px;
+    text-align: center;
+    color: #6c757d;
 }
 
 .no-nodes {

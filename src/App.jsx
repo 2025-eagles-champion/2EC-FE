@@ -19,6 +19,7 @@ function App() {
     const [batchWeight, setBatchWeight] = useState(50);
     const [txCountWeight, setTxCountWeight] = useState(25);
     const [txAmountWeight, setTxAmountWeight] = useState(25);
+    const [topN, setTopN] = useState(1); // 추가: Top-N 노드 수를 위한 상태
     const [dateRange, setDateRange] = useState({
         startDate: "2021-01-01",
         endDate: "2022-02-24",
@@ -29,7 +30,7 @@ function App() {
 
     // 노드 데이터 로드 함수
     const loadData = async (filters = {}) => {
-        console.log("loadData 함수 호출됨", { dateRange, batchWeight, txCountWeight, txAmountWeight });
+        console.log("loadData 함수 호출됨", { dateRange, batchWeight, txCountWeight, txAmountWeight, topN });
         setLoading(true);
         setLoadingProgress(10); // 초기 진행률
 
@@ -41,7 +42,7 @@ function App() {
                 batch_quant_weight: batchWeight,
                 tx_count_weight: txCountWeight,
                 tx_amount_weight: txAmountWeight,
-                top_n: 1,
+                top_n: topN, // 추가: topN 값 전달
                 ...filters,
             };
 
@@ -95,6 +96,7 @@ function App() {
     // 초기 데이터 로드
     useEffect(() => {
         loadData();
+        // 초기 로드 후에는 의존성 배열이 비어 있으므로 한 번만 실행됨
     }, []);
 
     // 필터 변경 시 데이터 다시 로드
@@ -142,6 +144,11 @@ function App() {
 
     const handleTxAmountWeightChange = (value) => {
         setTxAmountWeight(value);
+    };
+
+    // topN 값 변경 핸들러 추가
+    const handleTopNChange = (value) => {
+        setTopN(value);
     };
 
     // 날짜 범위 변경 핸들러
@@ -207,6 +214,8 @@ function App() {
                         dateRange={dateRange}
                         onDateRangeChange={handleDateRangeChange}
                         onFilterApply={handleFilterApply}
+                        topN={topN} // 추가: topN 상태 전달
+                        onTopNChange={handleTopNChange} // 추가: topN 변경 핸들러 전달
                     />
                 </div>
             </div>
