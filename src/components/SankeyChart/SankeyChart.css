@@ -11,6 +11,15 @@
 .sankey-chart {
     width: 100%;
     height: 100%;
+    cursor: grab; /* 패닝을 위한 커서 스타일 */
+    -webkit-user-select: none; /* 텍스트 선택 방지 */
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+.sankey-chart:active {
+    cursor: grabbing; /* 드래그 중 커서 변경 */
 }
 
 .links path {
@@ -40,4 +49,38 @@
     font-weight: bold;
     font-size: 14px;
     fill: #212529;
+}
+
+.chart-area {
+    transition: transform 0.1s ease-out; /* 부드러운 줌/패닝 효과 */
+}
+
+.depth-background {
+    transition: all 0.2s ease-out;
+}
+
+.depth-label {
+    user-select: none;
+    pointer-events: none;
+    font-size: 12px;
+    letter-spacing: 1px;
+}
+
+/* 줌 리셋 버튼 */
+.zoom-reset-button {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background-color: rgba(255, 255, 255, 0.8);
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 11px;
+    cursor: pointer;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+}
+
+.zoom-reset-button:hover {
+    opacity: 1;
 }

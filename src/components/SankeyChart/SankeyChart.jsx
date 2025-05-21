@@ -107,16 +107,16 @@ const SankeyChart = ({ transactions, selectedAddress, addressData }) => {
 
         // depth 값에 따라 노드를 필터링하여 반환 (선택 사항, 현재는 모든 노드 반환)
         // 만약 정확히 3단계만 표시하고 싶다면, depth가 0, 1, 2인 노드만 필터링할 수 있습니다.
-        const finalNodes = Array.from(nodeMap.values()).filter(node => 
-            node.depth === 0 || node.depth === 1 || node.depth === 2
+        const finalNodes = Array.from(nodeMap.values()).filter(
+            (node) => node.depth === 0 || node.depth === 1 || node.depth === 2
         );
 
         // 필터링된 노드에 해당하는 링크만 남기기
-        const finalNodeIds = new Set(finalNodes.map(n => n.id));
-        const finalLinks = aggregatedLinks.filter(link => 
-            finalNodeIds.has(link.source) && finalNodeIds.has(link.target)
+        const finalNodeIds = new Set(finalNodes.map((n) => n.id));
+        const finalLinks = aggregatedLinks.filter(
+            (link) =>
+                finalNodeIds.has(link.source) && finalNodeIds.has(link.target)
         );
-
 
         console.log(
             "Generated nodes by strict depth:",
@@ -131,7 +131,7 @@ const SankeyChart = ({ transactions, selectedAddress, addressData }) => {
             links: finalLinks,
         };
     }, [transactions, selectedAddress, addressData]);
-    
+
     // 순환 참조 링크 감지 및 제거 함수
     const removeCyclicLinks = (data) => {
         if (!data || !data.nodes || !data.links) {
@@ -245,9 +245,46 @@ const SankeyChart = ({ transactions, selectedAddress, addressData }) => {
             const svg = d3
                 .select(svgRef.current)
                 .attr("width", width + margin.left + margin.right)
-                .attr("height", height + margin.top + margin.bottom)
+                .attr("height", height + margin.top + margin.bottom);
+
+            // 메인 그룹 생성
+            const g = svg
                 .append("g")
                 .attr("transform", `translate(${margin.left},${margin.top})`);
+
+            // 마우스 휠 이벤트 메시지는 g에 추가 (고정 위치)
+            g.append("text")
+                .attr("x", width / 2)
+                .attr("y", -5)
+                .attr("text-anchor", "middle")
+                .attr("font-size", "11px")
+                .attr("fill", "#6c757d")
+                .text("마우스 휠: 확대/축소 | 드래그: 좌우 이동");
+
+            // 클리핑 패스 추가
+            svg.append("defs")
+                .append("clipPath")
+                .attr("id", "sankey-clip")
+                .append("rect")
+                .attr("width", width)
+                .attr("height", height);
+
+            // 클리핑 패스 적용할 그룹
+            const chartArea = g
+                .append("g")
+                .attr("clip-path", "url(#sankey-clip)")
+                .attr("class", "chart-area");
+
+            // 줌 동작 정의
+            const zoom = d3
+                .zoom()
+                .scaleExtent([0.5, 5])
+                .on("zoom", (event) => {
+                    chartArea.attr("transform", event.transform);
+                });
+
+            // SVG에 줌 동작 적용
+            svg.call(zoom);
 
             // 노드 및 링크 매핑 (d3-sankey 요구사항에 맞춤)
             const nodeMap = {};
@@ -294,21 +331,8 @@ const SankeyChart = ({ transactions, selectedAddress, addressData }) => {
                     ? 10
                     : (pageRank * 100).toFixed(1);
 
-                // // 티어 정보 표시
-                // svg.append("text")
-                //     .attr("class", "tier-info")
-                //     .attr("x", width / 2)
-                //     .attr("y", -5)
-                //     .attr("text-anchor", "middle")
-                //     .attr("fill", getTierColor(tier))
-                //     .text(
-                //         `${
-                //             tier.charAt(0).toUpperCase() + tier.slice(1)
-                //         } 티어 (신뢰도: ${displayRank}%)`
-                //     );
-
                 // 링크 그리기
-                const link = svg
+                const link = chartArea
                     .append("g")
                     .attr("class", "links")
                     .selectAll("path")
@@ -339,7 +363,7 @@ const SankeyChart = ({ transactions, selectedAddress, addressData }) => {
                 });
 
                 // 노드 그리기
-                const node = svg
+                const node = chartArea
                     .append("g")
                     .attr("class", "nodes")
                     .selectAll("rect")
@@ -360,7 +384,8 @@ const SankeyChart = ({ transactions, selectedAddress, addressData }) => {
                 );
 
                 // 노드 레이블
-                svg.append("g")
+                chartArea
+                    .append("g")
                     .attr("class", "node-labels")
                     .selectAll("text")
                     .data(layoutNodes)
@@ -401,7 +426,8 @@ const SankeyChart = ({ transactions, selectedAddress, addressData }) => {
                     const maxX = d3.max(depthNodes, (d) => d.x1);
 
                     // 배경 영역 추가
-                    svg.insert("rect", ":first-child")
+                    chartArea
+                        .insert("rect", ":first-child")
                         .attr("class", "depth-background")
                         .attr("x", minX - 10)
                         .attr("y", 0)
@@ -430,7 +456,7 @@ const SankeyChart = ({ transactions, selectedAddress, addressData }) => {
                     const centerX = (minX + maxX) / 2;
 
                     // 깊이 레이블 추가
-                    svg.append("text")
+                    g.append("text")
                         .attr("class", "depth-label")
                         .attr("x", centerX)
                         .attr("y", height + 15)
@@ -439,6 +465,11 @@ const SankeyChart = ({ transactions, selectedAddress, addressData }) => {
                         .attr("fill", "#555")
                         .text(depthLabels[i] || `${i}단계 노드`);
                 }
+
+                svg.call(
+                    zoom.transform,
+                    d3.zoomIdentity.translate(0, 0).scale(1)
+                );
             } catch (error) {
                 console.error("Error rendering sankey chart:", error);
                 svg.append("text")
