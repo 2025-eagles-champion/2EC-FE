@@ -179,7 +179,7 @@ function App() {
     return (
         <div className="app">
             <div className="header">
-                <h1>블록체인 트랜잭션 시각화</h1>
+                <h1>ChainEagles</h1>
             </div>
             <div className="main-content">
                 <div className="graph-container">

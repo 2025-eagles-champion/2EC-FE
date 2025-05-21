@@ -112,3 +112,13 @@ body {
 .error-container button:hover {
   background-color: #339af0;
 }
+
+.header {
+  border-bottom: 1px solid #dee2e6;
+  box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.header h1 {
+  font-size: 22px;
+  padding: 8px;
+}
