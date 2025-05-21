@@ -240,8 +240,7 @@ const StoryLineChart = ({ transactions, selectedAddress }) => {
         // 노드 간 곡선 생성 함수 정의
         const curve = d3.line()
             .x(d => d.x)
-            .y(d => d.y)
-            .curve(d3.curveBasis);
+            .y(d => d.y);
 
         // 트랜잭션 시각화 (노드 간 연결 및 이벤트)
         relevantTxs.forEach(tx => {
@@ -261,8 +260,6 @@ const StoryLineChart = ({ transactions, selectedAddress }) => {
             // 중간 제어점 정의 (곡선을 위한)
             const controlPoints = [
                 { x: x, y: fromY },
-                { x: x + 10, y: (fromY + toY) / 2 - 10 },
-                { x: x - 10, y: (fromY + toY) / 2 + 10 },
                 { x: x, y: toY }
             ];
 
@@ -281,8 +278,12 @@ const StoryLineChart = ({ transactions, selectedAddress }) => {
 
             // 발신 노드 그리기
             const fromNodeGroup = txNodeGroup.append("g")
+                .datum({            // 원본 좌표를 datum으로 넣어 둔다
+                        x: x,         // = xScale(time)
+                        y: fromY
+                })
                 .attr("class", "tx-node-group")
-                .attr("transform", `translate(${x},${fromY})`);
+                .attr("transform", d => `translate(${d.x},${d.y})`);
 
             // 노드 스타일 설정
             let fromStrokeColor = isFromSelected ? "#FF5722" : "#4CAF50";
@@ -350,6 +351,7 @@ const StoryLineChart = ({ transactions, selectedAddress }) => {
 
             // 수신 노드 그리기
             const toNodeGroup = txNodeGroup.append("g")
+                .datum({x,y : toY}) 
                 .attr("class", "tx-node-group")
                 .attr("transform", `translate(${x},${toY})`);
 
@@ -486,7 +488,7 @@ const StoryLineChart = ({ transactions, selectedAddress }) => {
         
         // 확대/축소 및 패닝을 위한 줌 설정
         const zoom = d3.zoom()
-            .scaleExtent([0.5, 10]) // 최소 0.5배, 최대 10배 확대/축소
+            .scaleExtent([0.5, 100]) // 확대배율 설정
             .extent([[0, 0], [width, height]])
             .on("zoom", function(event) {
                 // 현재 변환 값 가져오기
@@ -503,22 +505,7 @@ const StoryLineChart = ({ transactions, selectedAddress }) => {
                 
                 // 모든 트랜잭션 노드와 경로 업데이트
                 txNodeGroup.selectAll(".tx-node-group")
-                    .attr("transform", function() {
-                        // 현재 transform 속성 파싱
-                        const transform = d3.select(this).attr("transform");
-                        const match = transform.match(/translate\(([^,]+),([^)]+)/);
-                        
-                        if (!match) return transform;
-                        
-                        // 원래 좌표
-                        const x = parseFloat(match[1]);
-                        const y = parseFloat(match[2]);
-                        
-                        // x좌표만 변환
-                        const newX = event.transform.applyX(x);
-                        
-                        return `translate(${newX},${y})`;
-                    });
+                    .attr("transform", d => `translate(${event.transform.applyX(d.x)},${d.y})`);
                 
                 // 경로 업데이트
                 txNodeGroup.selectAll(".tx-path")
@@ -535,14 +522,13 @@ const StoryLineChart = ({ transactions, selectedAddress }) => {
                         return curve(newPoints);
                     });
                 
-                // 배경 레인과 중심선도 업데이트
+                const xOnlyTransformString = `translate(${transform.x}, 0) scale(${transform.k}, 1)`;
+
                 chartArea.selectAll(".lane-background")
-                    .attr("width", width / transform.k)
-                    .attr("x", transform.x < 0 ? -transform.x / transform.k : 0);
+                    .attr("transform", xOnlyTransformString);
                 
                 chartArea.selectAll(".lane-center-line")
-                    .attr("x1", transform.x < 0 ? -transform.x / transform.k : 0)
-                    .attr("x2", (transform.x < 0 ? -transform.x : 0) / transform.k + width / transform.k);
+                    .attr("transform", xOnlyTransformString);
             });
         
         // SVG 요소에 줌 적용
