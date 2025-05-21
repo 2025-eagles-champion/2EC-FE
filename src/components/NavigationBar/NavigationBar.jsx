@@ -4,7 +4,6 @@ import Slider from "./Slider";
 import NodeList from "./NodeList";
 import DateRangePicker from "../DateRangePicker/DateRangePicker";
 import "./NavigationBar.css";
-import { getTopKNodes } from "../../utils/dataUtils";
 
 const NavigationBar = ({
                            addressData,
@@ -15,7 +14,8 @@ const NavigationBar = ({
                            onDateRangeChange,
                            onFilterApply,
                            topN,
-                           onTopNChange
+                           onTopNChange,
+                           topNodesData // 추가: API에서 받은 top_nodes_derived_json
                        }) => {
     // App.jsx에서 받은 weights 사용
     const { batchWeight, txCountWeight, txAmountWeight } = weights || {
@@ -24,46 +24,12 @@ const NavigationBar = ({
         txAmountWeight: 25,
     };
 
-    const [topNodes, setTopNodes] = useState([]);
     const [loading, setLoading] = useState(false);
 
-    // 슬라이더 값이 변경될 때마다 Top-K 노드 조회
-    useEffect(() => {
-        if (!addressData || addressData.length === 0) {
-            console.log("No address data available yet");
-            return;
-        }
+    // API에서 받은 top_nodes_derived_json의 topN 개수만큼만 표시
+    const topNodes = topNodesData ? topNodesData.slice(0, topN) : [];
 
-        console.log(
-            "Calculating top nodes with weights:",
-            batchWeight,
-            txCountWeight,
-            txAmountWeight,
-            "Top-N:",
-            topN
-        );
-
-        setLoading(true);
-
-        // setTimeout을 사용하여 UI 렌더링 차단 방지
-        setTimeout(() => {
-            try {
-                const nodes = getTopKNodes(
-                    addressData,
-                    batchWeight,
-                    txCountWeight,
-                    txAmountWeight,
-                    topN * 10  // topN 값에 따라 노드 수를 조정 (1당 10개 노드)
-                );
-                console.log("Top nodes calculated:", nodes);
-                setTopNodes(nodes);
-            } catch (error) {
-                console.error("Error calculating top nodes:", error);
-            } finally {
-                setLoading(false);
-            }
-        }, 0);
-    }, [batchWeight, txCountWeight, txAmountWeight, addressData, topN]);
+    console.log("NavigationBar rendering with top nodes:", topNodes?.length, "from", topNodesData?.length);
 
     // 슬라이더 값 변경 핸들러
     const handleBatchWeightChange = (value) => {
@@ -85,8 +51,6 @@ const NavigationBar = ({
         console.log("Top N changed to:", value);
         onTopNChange(value);
     };
-
-    console.log("NavigationBar rendering with top nodes:", topNodes?.length);
 
     return (
         <div className="navigation-bar">
@@ -167,10 +131,16 @@ const NavigationBar = ({
                 </div>
             </div>
             <div className="nodes-section">
-                <h3>Top-{topN} 노드 목록 ({topNodes?.length || 0}</h3>
+                <h3>Top-{topN} 노드 목록 ({topNodes?.length || 0}개)</h3>
+                {/* NodeList 컴포넌트 추가 */}
+                <NodeList
+                    topNodes={topNodes}
+                    loading={loading}
+                    onNodeSelect={onNodeSelect}
+                />
             </div>
         </div>
-    )
+    );
 };
 
 export default NavigationBar;

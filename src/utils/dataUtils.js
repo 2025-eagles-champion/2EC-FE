@@ -183,7 +183,7 @@ export const getTopKNodes = (addressData, batchWeight, txCountWeight, txAmountWe
                 ...address,
                 id: nodeId, // id 필드 추가
                 score: totalScore,
-                name: shortenAddress(nodeId)
+                name: shortenAddress(nodeId, 5, 4) // 주소 축약 형태로 표시
             };
         });
 

@@ -19,11 +19,14 @@ function App() {
     const [batchWeight, setBatchWeight] = useState(50);
     const [txCountWeight, setTxCountWeight] = useState(25);
     const [txAmountWeight, setTxAmountWeight] = useState(25);
-    const [topN, setTopN] = useState(1); // 추가: Top-N 노드 수를 위한 상태
+    const [topN, setTopN] = useState(1); // Top-N 노드 수
     const [dateRange, setDateRange] = useState({
         startDate: "2022-01-15",
         endDate: "2022-02-15",
     });
+
+    // Top 노드 데이터 저장
+    const [topNodesData, setTopNodesData] = useState([]);
 
     // API URL 설정
     const API_URL = "http://localhost:8000";
@@ -42,7 +45,7 @@ function App() {
                 batch_quant_weight: batchWeight,
                 tx_count_weight: txCountWeight,
                 tx_amount_weight: txAmountWeight,
-                top_n: topN, // 추가: topN 값 전달
+                top_n: topN, // topN 값 전달
                 ...filters,
             };
 
@@ -53,6 +56,16 @@ function App() {
             const data = response.data;
 
             setLoadingProgress(70); // 데이터 수신 완료
+
+            // Top 노드 데이터 저장
+            const topNodes = data.top_nodes_derived_json.map(node => ({
+                ...node,
+                id: node.address, // id 필드 추가
+                tier: node.tier || "bronze",
+                pagerank: node.pagerank || node.final_score || 0,
+                chain: node.chain || node.address?.split("1")[0] || "unknown",
+            }));
+            setTopNodesData(topNodes);
 
             // 데이터 처리
             const allTransactions = [
@@ -214,8 +227,9 @@ function App() {
                         dateRange={dateRange}
                         onDateRangeChange={handleDateRangeChange}
                         onFilterApply={handleFilterApply}
-                        topN={topN} // 추가: topN 상태 전달
-                        onTopNChange={handleTopNChange} // 추가: topN 변경 핸들러 전달
+                        topN={topN}
+                        onTopNChange={handleTopNChange}
+                        topNodesData={topNodesData} // 추가: API에서 받은 top_nodes_derived_json 전달
                     />
                 </div>
             </div>
