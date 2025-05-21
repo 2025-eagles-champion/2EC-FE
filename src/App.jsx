@@ -21,8 +21,8 @@ function App() {
     const [txAmountWeight, setTxAmountWeight] = useState(25);
     const [topN, setTopN] = useState(1); // 추가: Top-N 노드 수를 위한 상태
     const [dateRange, setDateRange] = useState({
-        startDate: "2021-01-01",
-        endDate: "2022-02-24",
+        startDate: "2022-01-15",
+        endDate: "2022-02-15",
     });
 
     // API URL 설정
