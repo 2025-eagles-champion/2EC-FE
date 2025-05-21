@@ -25,7 +25,7 @@ function App() {
     });
 
     // API URL 설정
-    const API_URL = "http://172.22.220.142:8000";
+    const API_URL = "http://localhost:8000";
 
     // 노드 데이터 로드 함수
     const loadData = async (filters = {}) => {

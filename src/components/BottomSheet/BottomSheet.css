@@ -190,11 +190,13 @@
     margin-bottom: 12px;
     border: 1px solid #eaecef;
     border-radius: 6px;
+    position: relative; /* 테이블 내 요소의 포지셔닝 기준점 */
 }
 
 .transactions-list table {
     width: 100%;
     border-collapse: collapse;
+    table-layout: fixed;
 }
 
 .transactions-list th,
@@ -202,6 +204,21 @@
     padding: 10px;
     text-align: left;
     border-bottom: 1px solid #e9ecef;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.transactions-list th:first-child,
+.transactions-list td:first-child {
+    width: 50px; /* 인덱스 열 너비 조정 */
+    text-align: center;
+}
+
+.tx-index {
+    font-weight: 500;
+    color: #6c757d;
+    text-align: center;
 }
 
 .transactions-list th {
@@ -234,6 +251,7 @@
     align-items: center;
     margin-top: 16px;
     gap: 8px;
+    user-select: none;
 }
 
 .pagination-button {
@@ -245,6 +263,10 @@
     color: #495057;
     cursor: pointer;
     transition: all 0.2s;
+    min-width: 36px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
 .pagination-button:disabled {
@@ -261,6 +283,15 @@
     padding: 0 12px;
     font-size: 14px;
     color: #495057;
+    display: flex;
+    align-items: center;
+    min-width: 60px;
+    justify-content: center;
+}
+
+.current-page {
+    font-weight: 600;
+    color: #4dabf7;
 }
 
 /* 모바일 대응 */

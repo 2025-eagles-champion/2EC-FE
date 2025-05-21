@@ -1,5 +1,5 @@
 // src/components/BottomSheet/BottomSheet.jsx
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import "./BottomSheet.css";
 import SankeyChart from "../SankeyChart/SankeyChart";
 import StoryLineChart from "../StoryLineChart/StoryLineChart";
@@ -19,14 +19,33 @@ const BottomSheet = ({
                          allTransactions,
                          addressData,
                      }) => {
+    // 기본 상태
     const [nodeDetail, setNodeDetail] = useState(null);
     const [nodeTransactions, setNodeTransactions] = useState([]);
     const [loading, setLoading] = useState(false);
     const sheetRef = useRef(null);
 
-    // 페이지네이션 상태 추가
+    // 페이지네이션 상태
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
+
+    // 현재 표시할 트랜잭션 목록을 계산하는 메모이제이션 훅
+    const paginatedTransactions = useMemo(() => {
+        // 전체 트랜잭션 중 최대 100개만 처리
+        const limitedTransactions = nodeTransactions.slice(0, 100);
+
+        // 현재 페이지에 표시할 트랜잭션 계산
+        const indexOfLastTransaction = currentPage * itemsPerPage;
+        const indexOfFirstTransaction = indexOfLastTransaction - itemsPerPage;
+
+        return limitedTransactions.slice(indexOfFirstTransaction, indexOfLastTransaction);
+    }, [nodeTransactions, currentPage, itemsPerPage]);
+
+    // 총 페이지 수 계산
+    const totalPages = useMemo(() => {
+        const totalItems = Math.min(nodeTransactions.length, 100);
+        return Math.ceil(totalItems / itemsPerPage);
+    }, [nodeTransactions.length, itemsPerPage]);
 
     // 선택된 노드가 변경될 때마다 상세 정보 조회
     useEffect(() => {
@@ -100,6 +119,14 @@ const BottomSheet = ({
         }
     }, [selectedNode, isOpen, addressData, allTransactions]);
 
+    // 페이지 변경 시 테이블 스크롤 위치 초기화
+    useEffect(() => {
+        const tableWrapper = document.querySelector('.table-wrapper');
+        if (tableWrapper) {
+            tableWrapper.scrollTop = 0;
+        }
+    }, [currentPage, itemsPerPage]);
+
     // 바텀 시트 닫기
     const handleClose = () => {
         onClose();
@@ -114,13 +141,22 @@ const BottomSheet = ({
 
     // 페이지 변경 핸들러
     const handlePageChange = (newPage) => {
+        if (newPage < 1 || newPage > totalPages) {
+            return;
+        }
         setCurrentPage(newPage);
     };
 
     // 페이지 당 항목 수 변경 핸들러
     const handleItemsPerPageChange = (e) => {
-        setItemsPerPage(Number(e.target.value));
-        setCurrentPage(1); // 페이지 당 항목 수 변경 시 첫 페이지로 이동
+        const newItemsPerPage = Number(e.target.value);
+
+        // 현재 페이지 재계산 (현재 보고 있는 첫 항목이 새 페이지에도 포함되도록)
+        const firstItemIndex = (currentPage - 1) * itemsPerPage;
+        const newPage = Math.max(1, Math.floor(firstItemIndex / newItemsPerPage) + 1);
+
+        setItemsPerPage(newItemsPerPage);
+        setCurrentPage(newPage);
     };
 
     // 트랜잭션 목록 렌더링
@@ -129,20 +165,14 @@ const BottomSheet = ({
             return <div className="no-transactions">거래 내역이 없습니다</div>;
         }
 
-        // 현재 페이지에 표시할 항목 계산
-        const indexOfLastItem = currentPage * itemsPerPage;
-        const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-        // 최대 100개까지만 표시
-        const maxTransactions = nodeTransactions.slice(0, 100);
-        const currentItems = maxTransactions.slice(indexOfFirstItem, indexOfLastItem);
-
-        // 총 페이지 수 계산
-        const totalPages = Math.ceil(Math.min(nodeTransactions.length, 100) / itemsPerPage);
+        // 표시할 아이템 범위 계산
+        const totalItems = Math.min(nodeTransactions.length, 100);
+        const indexOfFirstItem = (currentPage - 1) * itemsPerPage;
 
         return (
             <div className="transactions-list">
                 <div className="transactions-header">
-                    <h4>최근 거래 내역 ({Math.min(nodeTransactions.length, 100)}건)</h4>
+                    <h4>최근 거래 내역 ({totalItems}건)</h4>
                     <div className="transactions-controls">
                         <select
                             value={itemsPerPage}
@@ -162,6 +192,7 @@ const BottomSheet = ({
                     <table>
                         <thead>
                         <tr>
+                            <th>#</th>
                             <th>타입</th>
                             <th>발신지</th>
                             <th>수신지</th>
@@ -170,11 +201,15 @@ const BottomSheet = ({
                         </tr>
                         </thead>
                         <tbody>
-                        {currentItems.map((tx) => {
+                        {paginatedTransactions.map((tx, index) => {
                             if (!tx || !tx.txhash) return null;
 
+                            // 현재 페이지에 맞는 인덱스 계산 (1부터 시작)
+                            const displayIndex = indexOfFirstItem + index + 1;
+
                             return (
-                                <tr key={tx.txhash}>
+                                <tr key={`tx-${tx.txhash}-idx-${displayIndex}`}>
+                                    <td className="tx-index">{displayIndex}</td>
                                     <td>{tx.type || "전송"}</td>
                                     <td>
                                             <span
@@ -229,6 +264,7 @@ const BottomSheet = ({
                             onClick={() => handlePageChange(1)}
                             disabled={currentPage === 1}
                             className="pagination-button"
+                            aria-label="첫 페이지"
                         >
                             &laquo;
                         </button>
@@ -236,18 +272,22 @@ const BottomSheet = ({
                             onClick={() => handlePageChange(currentPage - 1)}
                             disabled={currentPage === 1}
                             className="pagination-button"
+                            aria-label="이전 페이지"
                         >
                             &lt;
                         </button>
 
                         <div className="pagination-info">
-                            {currentPage} / {totalPages}
+                            <span className="current-page">{currentPage}</span>
+                            <span className="page-separator"> / </span>
+                            <span className="total-pages">{totalPages}</span>
                         </div>
 
                         <button
                             onClick={() => handlePageChange(currentPage + 1)}
                             disabled={currentPage === totalPages}
                             className="pagination-button"
+                            aria-label="다음 페이지"
                         >
                             &gt;
                         </button>
@@ -255,6 +295,7 @@ const BottomSheet = ({
                             onClick={() => handlePageChange(totalPages)}
                             disabled={currentPage === totalPages}
                             className="pagination-button"
+                            aria-label="마지막 페이지"
                         >
                             &raquo;
                         </button>
