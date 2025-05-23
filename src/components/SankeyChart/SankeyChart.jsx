@@ -24,12 +24,12 @@ const SankeyChart = ({ transactions, selectedAddress, addressData }) => {
         );
         nodeMap.set(selectedAddress, {
             id: selectedAddress,
-            name: shortenAddress(selectedAddress, 5, 4), //
+            name: shortenAddress(selectedAddress, 5, 4),
             chain:
                 selectedNodeInfo?.chain ||
                 selectedAddress.split("1")[0] ||
-                "unknown", //
-            tier: selectedNodeInfo?.tier || "bronze", //
+                "unknown",
+            tier: selectedNodeInfo?.tier || "bronze",
             depth: 1, // 중심 노드는 depth 1로 명시
         });
 
@@ -45,21 +45,23 @@ const SankeyChart = ({ transactions, selectedAddress, addressData }) => {
                     );
                     nodeMap.set(tx.fromAddress, {
                         id: tx.fromAddress,
-                        name: shortenAddress(tx.fromAddress, 5, 4), //
+                        name: shortenAddress(tx.fromAddress, 5, 4),
                         chain:
                             sourceNodeInfo?.chain ||
                             tx.fromChain ||
                             tx.fromAddress.split("1")[0] ||
-                            "unknown", //
-                        tier: sourceNodeInfo?.tier || "bronze", //
+                            "unknown",
+                        tier: sourceNodeInfo?.tier || "bronze",
                         depth: 0, // 입력 노드는 depth 0으로 명시
                     });
                 }
                 newLinks.push({
                     source: tx.fromAddress,
                     target: selectedAddress,
-                    value: tx.amount || 1, //
-                    denom: tx.dpDenom || tx.denom || "", //
+                    value: tx.amount || 1,
+                    denom: tx.dpDenom || tx.denom || "",
+                    // 원본 트랜잭션 정보 저장
+                    originalTx: tx
                 });
             }
             // 선택된 노드에서 나가는 거래 (출력 노드)
@@ -72,21 +74,23 @@ const SankeyChart = ({ transactions, selectedAddress, addressData }) => {
                     );
                     nodeMap.set(tx.toAddress, {
                         id: tx.toAddress,
-                        name: shortenAddress(tx.toAddress, 5, 4), //
+                        name: shortenAddress(tx.toAddress, 5, 4),
                         chain:
                             targetNodeInfo?.chain ||
                             tx.toChain ||
                             tx.toAddress.split("1")[0] ||
-                            "unknown", //
-                        tier: targetNodeInfo?.tier || "bronze", //
+                            "unknown",
+                        tier: targetNodeInfo?.tier || "bronze",
                         depth: 2, // 출력 노드는 depth 2로 명시
                     });
                 }
                 newLinks.push({
                     source: selectedAddress,
                     target: tx.toAddress,
-                    value: tx.amount || 1, //
-                    denom: tx.dpDenom || tx.denom || "", //
+                    value: tx.amount || 1,
+                    denom: tx.dpDenom || tx.denom || "",
+                    // 원본 트랜잭션 정보 저장
+                    originalTx: tx
                 });
             }
         });
@@ -98,9 +102,17 @@ const SankeyChart = ({ transactions, selectedAddress, addressData }) => {
         newLinks.forEach((link) => {
             const linkId = `${link.source}-${link.target}`;
             if (linkAggMap.has(linkId)) {
-                linkAggMap.get(linkId).value += link.value;
+                const existingLink = linkAggMap.get(linkId);
+                existingLink.value += link.value;
+                // 원본 트랜잭션 데이터도 배열로 저장
+                existingLink.transactions = existingLink.transactions || [existingLink.originalTx];
+                existingLink.transactions.push(link.originalTx);
             } else {
-                linkAggMap.set(linkId, { ...link });
+                // 새 링크 생성 시 트랜잭션 배열 초기화
+                linkAggMap.set(linkId, { 
+                    ...link,
+                    transactions: [link.originalTx] 
+                });
             }
         });
         aggregatedLinks.push(...linkAggMap.values());
@@ -116,14 +128,6 @@ const SankeyChart = ({ transactions, selectedAddress, addressData }) => {
         const finalLinks = aggregatedLinks.filter(
             (link) =>
                 finalNodeIds.has(link.source) && finalNodeIds.has(link.target)
-        );
-
-        console.log(
-            "Generated nodes by strict depth:",
-            finalNodes.reduce((acc, node) => {
-                acc[node.depth] = (acc[node.depth] || 0) + 1;
-                return acc;
-            }, {})
         );
 
         return {
@@ -275,6 +279,24 @@ const SankeyChart = ({ transactions, selectedAddress, addressData }) => {
                 .attr("clip-path", "url(#sankey-clip)")
                 .attr("class", "chart-area");
 
+            // 고급 툴팁 생성
+            let tooltip = d3.select("body").select(".sankey-tooltip");
+            if (tooltip.empty()) {
+                tooltip = d3.select("body").append("div")
+                    .attr("class", "sankey-tooltip")
+                    .style("position", "absolute")
+                    .style("opacity", 0)
+                    .style("pointer-events", "none")
+                    .style("background-color", "white")
+                    .style("border", "1px solid #ddd")
+                    .style("border-radius", "4px")
+                    .style("padding", "10px")
+                    .style("font-size", "12px")
+                    .style("box-shadow", "0 2px 10px rgba(0,0,0,0.2)")
+                    .style("z-index", "10000")
+                    .style("max-width", "300px");
+            }
+
             // 줌 동작 정의
             const zoom = d3
                 .zoom()
@@ -296,6 +318,10 @@ const SankeyChart = ({ transactions, selectedAddress, addressData }) => {
                 source: nodeMap[link.source],
                 target: nodeMap[link.target],
                 value: Math.log(Math.max(1, link.value) + 1), // 최소값 설정
+                // 원본 데이터 보존
+                originalLink: link,
+                denom: link.denom,
+                transactions: link.transactions
             }));
 
             // 최종 데이터 준비
@@ -353,14 +379,89 @@ const SankeyChart = ({ transactions, selectedAddress, addressData }) => {
                     .style("fill", "none")
                     .sort((a, b) => b.width - a.width);
 
-                // 링크 호버 툴팁
-                link.append("title").text((d) => {
-                    const sourceNode = nodes[d.source.index];
-                    const targetNode = nodes[d.target.index];
-                    return `${sourceNode.name} → ${
-                        targetNode.name
-                    }\n${d.value.toFixed(4)}`;
-                });
+                // 링크 이벤트 처리 (향상된 툴팁)
+                link
+                    .on("mouseover", function(event, d) {
+                        // 링크 강조
+                        d3.select(this)
+                            .attr("stroke-opacity", 1)
+                            .attr("stroke-width", (d) => Math.max(1, d.width) + 2);
+                        
+                        const sourceNode = nodes[d.source.index];
+                        const targetNode = nodes[d.target.index];
+                        const originalLink = d.originalLink;
+                        const txCount = d.transactions ? d.transactions.length : 1;
+                        const denom = d.denom || originalLink?.denom || "";
+                        
+                        // 최근 거래 시간 (있는 경우)
+                        let txTime = "";
+                        if (d.transactions && d.transactions.length > 0) {
+                            const latestTx = d.transactions.sort((a, b) => b.timestamp - a.timestamp)[0];
+                            if (latestTx.timestamp) {
+                                txTime = new Date(latestTx.timestamp).toLocaleString();
+                            }
+                        }
+                        
+                        // 고급 툴팁 HTML 구성
+                        let tooltipHTML = `
+                            <div style="border-bottom: 1px solid #eee; margin-bottom: 8px; padding-bottom: 5px;">
+                                <div style="font-weight: bold; margin-bottom: 5px; color: #333;">거래 요약</div>
+                            </div>
+                            <div style="display: flex; margin-bottom: 5px;">
+                                <div style="width: 80px; color: #666;">발신 노드:</div>
+                                <div style="font-weight: 500; color: ${getChainColor(sourceNode.chain)}">
+                                    ${sourceNode.name} <span style="color: #666; font-size: 10px;">(${sourceNode.chain})</span>
+                                </div>
+                            </div>
+                            <div style="display: flex; margin-bottom: 5px;">
+                                <div style="width: 80px; color: #666;">수신 노드:</div>
+                                <div style="font-weight: 500; color: ${getChainColor(targetNode.chain)}">
+                                    ${targetNode.name} <span style="color: #666; font-size: 10px;">(${targetNode.chain})</span>
+                                </div>
+                            </div>
+                            <div style="display: flex; margin-bottom: 5px;">
+                                <div style="width: 80px; color: #666;">거래량:</div>
+                                <div style="font-weight: 500;">${d.originalLink.value.toFixed(4)} ${denom}</div>
+                            </div>
+                            <div style="display: flex; margin-bottom: 5px;">
+                                <div style="width: 80px; color: #666;">거래 횟수:</div>
+                                <div style="font-weight: 500;">${txCount}회</div>
+                            </div>`;
+                            
+                        if (txTime) {
+                            tooltipHTML += `
+                            <div style="display: flex; margin-bottom: 5px;">
+                                <div style="width: 80px; color: #666;">최근 거래:</div>
+                                <div style="font-weight: 500;">${txTime}</div>
+                            </div>`;
+                        }
+                        
+                        tooltip.html(tooltipHTML);
+                        
+                        // 툴팁 위치 및 표시
+                        tooltip.transition()
+                            .duration(200)
+                            .style("opacity", 1);
+                            
+                        tooltip.style("left", (event.pageX + 15) + "px")
+                            .style("top", (event.pageY - 35) + "px");
+                    })
+                    .on("mousemove", function(event) {
+                        // 마우스 움직임에 따라 툴팁 위치 업데이트
+                        tooltip.style("left", (event.pageX + 15) + "px")
+                            .style("top", (event.pageY - 35) + "px");
+                    })
+                    .on("mouseout", function() {
+                        // 링크 원래 상태로 복원
+                        d3.select(this)
+                            .attr("stroke-opacity", 0.7)
+                            .attr("stroke-width", (d) => Math.max(1, d.width));
+                        
+                        // 툴팁 숨기기
+                        tooltip.transition()
+                            .duration(500)
+                            .style("opacity", 0);
+                    });
 
                 // 노드 그리기
                 const node = chartArea
@@ -378,10 +479,99 @@ const SankeyChart = ({ transactions, selectedAddress, addressData }) => {
                     .attr("stroke", "#333")
                     .attr("stroke-opacity", 0.2);
 
-                // 노드 호버 툴팁
-                node.append("title").text(
-                    (d) => `${d.name} (${d.chain || "unknown"})`
-                );
+                // 노드 이벤트 처리 (향상된 툴팁)
+                node
+                    .on("mouseover", function(event, d) {
+                        // 노드 강조
+                        d3.select(this)
+                            .attr("stroke", "#000")
+                            .attr("stroke-width", 2)
+                            .attr("stroke-opacity", 1);
+                        
+                        // 노드와 관련된 인바운드 링크 수와 아웃바운드 링크 수 계산
+                        const inboundLinks = layoutLinks.filter(link => link.target.index === d.index);
+                        const outboundLinks = layoutLinks.filter(link => link.source.index === d.index);
+                        
+                        // 인바운드 및 아웃바운드 거래량 합계 계산
+                        const inboundValue = inboundLinks.reduce((sum, link) => 
+                            sum + (link.originalLink?.value || 0), 0);
+                        const outboundValue = outboundLinks.reduce((sum, link) => 
+                            sum + (link.originalLink?.value || 0), 0);
+                        
+                        // 사용할 가장 일반적인 통화 단위 찾기
+                        const allLinks = [...inboundLinks, ...outboundLinks];
+                        const denomCounts = {};
+                        allLinks.forEach(link => {
+                            const denom = link.denom || link.originalLink?.denom || "";
+                            denomCounts[denom] = (denomCounts[denom] || 0) + 1;
+                        });
+                        
+                        let commonDenom = "";
+                        let maxCount = 0;
+                        Object.entries(denomCounts).forEach(([denom, count]) => {
+                            if (count > maxCount && denom) {
+                                maxCount = count;
+                                commonDenom = denom;
+                            }
+                        });
+                        
+                        // 고급 툴팁 HTML 구성
+                        const tooltipHTML = `
+                            <div style="border-bottom: 1px solid #eee; margin-bottom: 8px; padding-bottom: 5px;">
+                                <div style="font-weight: bold; margin-bottom: 5px; color: #333;">${d.name} 노드 정보</div>
+                            </div>
+                            <div style="display: flex; margin-bottom: 5px;">
+                                <div style="width: 80px; color: #666;">주소:</div>
+                                <div style="font-weight: 500;">${shortenAddress(d.id, 8, 6)}</div>
+                            </div>
+                            <div style="display: flex; margin-bottom: 5px;">
+                                <div style="width: 80px; color: #666;">체인:</div>
+                                <div style="font-weight: 500; color: ${getChainColor(d.chain)}">${d.chain}</div>
+                            </div>
+                            <div style="display: flex; margin-bottom: 5px;">
+                                <div style="width: 80px; color: #666;">수신량:</div>
+                                <div style="font-weight: 500;">${inboundValue.toFixed(4)} ${commonDenom}</div>
+                            </div>
+                            <div style="display: flex; margin-bottom: 5px;">
+                                <div style="width: 80px; color: #666;">송신량:</div>
+                                <div style="font-weight: 500;">${outboundValue.toFixed(4)} ${commonDenom}</div>
+                            </div>
+                            <div style="display: flex; margin-bottom: 5px;">
+                                <div style="width: 80px; color: #666;">순 거래량:</div>
+                                <div style="font-weight: 500;">${(inboundValue - outboundValue).toFixed(4)} ${commonDenom}</div>
+                            </div>
+                            <div style="display: flex; margin-bottom: 5px;">
+                                <div style="width: 80px; color: #666;">연결 노드:</div>
+                                <div style="font-weight: 500;">${inboundLinks.length + outboundLinks.length}개</div>
+                            </div>`;
+                        
+                        tooltip.html(tooltipHTML);
+                        
+                        // 툴팁 위치 및 표시
+                        tooltip.transition()
+                            .duration(200)
+                            .style("opacity", 1);
+                            
+                        tooltip.style("left", (event.pageX + 15) + "px")
+                            .style("top", (event.pageY - 35) + "px");
+                    })
+                    .on("mousemove", function(event) {
+                        // 마우스 움직임에 따라 툴팁 위치 업데이트
+                        tooltip.style("left", (event.pageX + 15) + "px")
+                            .style("top", (event.pageY - 35) + "px");
+                    })
+                    .on("mouseout", function() {
+                        // 노드 원래 상태로 복원
+                        d3.select(this)
+                            .attr("stroke", "#333")
+                            .attr("stroke-width", 1)
+                            .attr("stroke-opacity", 0.2);
+                        
+                        // 툴팁 숨기기
+                        tooltip.transition()
+                            .duration(500)
+                            .style("opacity", 0);
+                    });
 
                 // 노드 레이블
                 chartArea
@@ -440,9 +630,9 @@ const SankeyChart = ({ transactions, selectedAddress, addressData }) => {
 
                 // 깊이 레이블 추가
                 const depthLabels = [
+                    "입력 노드",
                     "중심 노드",
-                    "1단계 연결 노드",
-                    "2단계 연결 노드",
+                    "출력 노드",
                     "3단계 연결 노드",
                 ];
                 for (let i = 0; i <= maxDepth; i++) {
