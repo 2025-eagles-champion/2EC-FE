@@ -17,12 +17,12 @@ function App() {
 
     // 필터 상태
     const [batchWeight, setBatchWeight] = useState(50);
-    const [txCountWeight, setTxCountWeight] = useState(25);
-    const [txAmountWeight, setTxAmountWeight] = useState(25);
-    const [topN, setTopN] = useState(1); // Top-N 노드 수
+    const [txCountWeight, setTxCountWeight] = useState(90);
+    const [txAmountWeight, setTxAmountWeight] = useState(70);
+    const [topN, setTopN] = useState(2); // Top-N 노드 수
     const [dateRange, setDateRange] = useState({
-        startDate: "2022-01-15",
-        endDate: "2022-02-15",
+        startDate: "2022-01-18",
+        endDate: "2022-03-29",
     });
 
     // Top 노드 데이터 저장
