@@ -76,7 +76,7 @@ const NavigationBar = ({
 
                 <div className="slider-container">
                     <div className="slider-flex">
-                        <label>배치/퀀트 가중치</label>
+                        <label>퀀트/배치 가중치</label>
                         <span className="slider-value">{batchWeight}%</span>
                     </div>
                     <Slider
