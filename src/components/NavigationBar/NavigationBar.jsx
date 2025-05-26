@@ -17,11 +17,12 @@ const NavigationBar = ({
                            onTopNChange,
                            topNodesData // 추가: API에서 받은 top_nodes_derived_json
                        }) => {
-    // App.jsx에서 받은 weights 사용
-    const { batchWeight, txCountWeight, txAmountWeight } = weights || {
+    // App.jsx에서 받은 weights 사용 - 외부 활동 가중치 추가
+    const { batchWeight, txCountWeight, txAmountWeight, externalActivityWeight } = weights || {
         batchWeight: 50,
         txCountWeight: 25,
         txAmountWeight: 25,
+        externalActivityWeight: 25, // 기본값 추가
     };
 
     const [loading, setLoading] = useState(false);
@@ -31,7 +32,7 @@ const NavigationBar = ({
 
     console.log("NavigationBar rendering with top nodes:", topNodes?.length, "from", topNodesData?.length);
 
-    // 슬라이더 값 변경 핸들러
+    // 슬라이더 값 변경 핸들러 - 외부 활동 가중치 핸들러 추가
     const handleBatchWeightChange = (value) => {
         console.log("Batch weight changed to:", value);
         onFilterChange.batchWeight(value);
@@ -45,6 +46,12 @@ const NavigationBar = ({
     const handleTxAmountWeightChange = (value) => {
         console.log("TX amount weight changed to:", value);
         onFilterChange.txAmountWeight(value);
+    };
+
+    // 새로 추가된 외부 활동 가중치 핸들러
+    const handleExternalActivityWeightChange = (value) => {
+        console.log("External activity weight changed to:", value);
+        onFilterChange.externalActivityWeight(value);
     };
 
     const handleTopNChange = (value) => {
@@ -84,6 +91,9 @@ const NavigationBar = ({
                         value={batchWeight}
                         onChange={handleBatchWeightChange}
                     />
+                    <div className="slider-description">
+                        거래 패턴의 규칙성과 자동화된 거래 특성을 측정합니다
+                    </div>
                 </div>
                 <div className="slider-container">
                     <div className="slider-flex">
@@ -95,6 +105,9 @@ const NavigationBar = ({
                         value={txCountWeight}
                         onChange={handleTxCountWeightChange}
                     />
+                    <div className="slider-description">
+                        총 거래 횟수가 많을수록 높은 점수를 부여합니다
+                    </div>
                 </div>
                 <div className="slider-container">
                     <div className="slider-flex">
@@ -106,6 +119,25 @@ const NavigationBar = ({
                         value={txAmountWeight}
                         onChange={handleTxAmountWeightChange}
                     />
+                    <div className="slider-description">
+                        총 거래 금액이 클수록 높은 점수를 부여합니다
+                    </div>
+                </div>
+
+                {/* 새로 추가된 외부 활동 가중치 슬라이더 */}
+                <div className="slider-container">
+                    <div className="slider-flex">
+                        <label>외부 활동 가중치</label>
+                        <span className="slider-value">{externalActivityWeight}%</span>
+                    </div>
+                    <Slider
+                        label="외부 활동 가중치"
+                        value={externalActivityWeight}
+                        onChange={handleExternalActivityWeightChange}
+                    />
+                    <div className="slider-description">
+                        크로스체인 거래 빈도와 체인 간 다양성을 측정합니다
+                    </div>
                 </div>
 
                 {/* DateRangePicker 추가 */}

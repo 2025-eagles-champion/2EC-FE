@@ -80,6 +80,8 @@
     text-align: center;
 }
 
+/* 외부 활동 가중치는 다른 슬라이더와 동일한 스타일 적용 */
+
 h3 {
     margin-top: 0;
     margin-bottom: 16px;
@@ -130,4 +132,31 @@ h4 {
 
 .apply-button:active {
     transform: translateY(1px);
+}
+
+/* 슬라이더 섹션에 대한 추가 설명 텍스트 */
+.slider-description {
+    margin-top: 4px;
+    font-size: 0.75rem;
+    color: #6c757d;
+    font-style: italic;
+}
+
+/* 반응형 디자인 */
+@media (max-width: 768px) {
+    .filter-section {
+        padding: 15px;
+    }
+    
+    .nodes-section {
+        padding: 15px;
+    }
+    
+    .slider-container {
+        margin-bottom: 12px;
+    }
+    
+    h3 {
+        font-size: 1.1rem;
+    }
 }

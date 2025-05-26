@@ -15,10 +15,11 @@ function App() {
     const [loadingProgress, setLoadingProgress] = useState(0);
     const [error, setError] = useState(null);
 
-    // 필터 상태
+    // 필터 상태 - 외부 활동 가중치 추가
     const [batchWeight, setBatchWeight] = useState(50);
     const [txCountWeight, setTxCountWeight] = useState(50);
     const [txAmountWeight, setTxAmountWeight] = useState(70);
+    const [externalActivityWeight, setExternalActivityWeight] = useState(30); // 새로 추가된 외부 활동 가중치
     const [topN, setTopN] = useState(2); // Top-N 노드 수
     const [dateRange, setDateRange] = useState({
         startDate: "2022-01-01",
@@ -31,20 +32,28 @@ function App() {
     // API URL 설정
     const API_URL = "http://localhost:8000";
 
-    // 노드 데이터 로드 함수
+    // 노드 데이터 로드 함수 - 외부 활동 가중치 추가
     const loadData = async (filters = {}) => {
-        console.log("loadData 함수 호출됨", { dateRange, batchWeight, txCountWeight, txAmountWeight, topN });
+        console.log("loadData 함수 호출됨", { 
+            dateRange, 
+            batchWeight, 
+            txCountWeight, 
+            txAmountWeight, 
+            externalActivityWeight, // 추가된 로그
+            topN 
+        });
         setLoading(true);
         setLoadingProgress(10); // 초기 진행률
 
         try {
-            // 필터 설정
+            // 필터 설정 - 외부 활동 가중치 추가
             const requestData = {
                 start_date: dateRange.startDate,
                 end_date: dateRange.endDate,
                 batch_quant_weight: batchWeight,
                 tx_count_weight: txCountWeight,
                 tx_amount_weight: txAmountWeight,
+                external_activity_weight: externalActivityWeight, // 새로 추가된 필드
                 top_n: topN, // topN 값 전달
                 ...filters,
             };
@@ -146,7 +155,7 @@ function App() {
         setBottomSheetOpen(false);
     };
 
-    // 슬라이더 값 변경 핸들러
+    // 슬라이더 값 변경 핸들러 - 외부 활동 가중치 핸들러 추가
     const handleBatchWeightChange = (value) => {
         setBatchWeight(value);
     };
@@ -157,6 +166,11 @@ function App() {
 
     const handleTxAmountWeightChange = (value) => {
         setTxAmountWeight(value);
+    };
+
+    // 새로 추가된 외부 활동 가중치 핸들러
+    const handleExternalActivityWeightChange = (value) => {
+        setExternalActivityWeight(value);
     };
 
     // topN 값 변경 핸들러 추가
@@ -218,11 +232,13 @@ function App() {
                             batchWeight: handleBatchWeightChange,
                             txCountWeight: handleTxCountWeightChange,
                             txAmountWeight: handleTxAmountWeightChange,
+                            externalActivityWeight: handleExternalActivityWeightChange, // 새로 추가된 핸들러
                         }}
                         weights={{
                             batchWeight,
                             txCountWeight,
                             txAmountWeight,
+                            externalActivityWeight, // 새로 추가된 가중치
                         }}
                         dateRange={dateRange}
                         onDateRangeChange={handleDateRangeChange}
