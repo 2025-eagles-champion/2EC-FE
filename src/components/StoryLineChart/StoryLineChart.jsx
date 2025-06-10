@@ -488,7 +488,7 @@ const StoryLineChart = ({ transactions, selectedAddress }) => {
 
         // 확대/축소 및 패닝을 위한 줌 설정
         const zoom = d3.zoom()
-            .scaleExtent([0.5, 100]) // 확대배율 설정
+            .scaleExtent([0.5, 1000]) // 확대배율 설정
             .extent([[0, 0], [width, height]])
             .on("zoom", function(event) {
                 // 현재 변환 값 가져오기

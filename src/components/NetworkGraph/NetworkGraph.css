@@ -44,25 +44,132 @@
     stroke-width: 2px;
 }
 
-/* 상위 노드 스타일 */
+/* Top 노드 강조 스타일 */
+.top-node {
+    z-index: 10;
+}
+
 .top-node circle {
-    filter: drop-shadow(0 0 3px rgba(255,255,255,0.5));
+    filter: drop-shadow(0 0 8px rgba(255,215,0,0.6));
+    transition: all 0.3s ease;
+}
+
+.top-node circle:hover {
+    filter: drop-shadow(0 0 12px rgba(255,215,0,0.8));
+    transform: scale(1.1);
 }
 
 .top-node .node-label {
     font-weight: bold;
     font-size: 11px;
+    fill: #FFD700;
     text-shadow:
-            -1px -1px 0 rgba(0,0,0,0.8),
-            1px -1px 0 rgba(0,0,0,0.8),
-            -1px 1px 0 rgba(0,0,0,0.8),
-            1px 1px 0 rgba(0,0,0,0.8),
-            0 0 5px rgba(0,0,0,0.7);
+            -1px -1px 0 rgba(0,0,0,0.9),
+            1px -1px 0 rgba(0,0,0,0.9),
+            -1px 1px 0 rgba(0,0,0,0.9),
+            1px 1px 0 rgba(0,0,0,0.9),
+            0 0 8px rgba(255,215,0,0.8);
+}
+
+/* Top 노드 배경 원 애니메이션 */
+.top-node-background {
+    animation: topNodePulse 3s infinite;
+}
+
+@keyframes topNodePulse {
+    0% {
+        stroke-opacity: 0.2;
+        transform: scale(1);
+    }
+    50% {
+        stroke-opacity: 0.5;
+        transform: scale(1.05);
+    }
+    100% {
+        stroke-opacity: 0.2;
+        transform: scale(1);
+    }
+}
+
+/* Top 노드 순위 숫자 스타일 */
+.top-node text {
+    text-shadow: 
+        -1px -1px 0 rgba(0,0,0,0.8),
+        1px -1px 0 rgba(0,0,0,0.8),
+        -1px 1px 0 rgba(0,0,0,0.8),
+        1px 1px 0 rgba(0,0,0,0.8);
+}
+
+/* 펄스 애니메이션 키프레임 */
+@keyframes pulse {
+    0% {
+        stroke-opacity: 0.6;
+        stroke-width: 2px;
+    }
+    50% {
+        stroke-opacity: 1;
+        stroke-width: 3px;
+    }
+    100% {
+        stroke-opacity: 0.6;
+        stroke-width: 2px;
+    }
 }
 
 /* 선택된 노드 스타일 */
 .selected-node circle {
     stroke: #fff !important;
+    stroke-width: 4px !important;
+    filter: drop-shadow(0 0 10px rgba(255,255,255,0.9));
+}
+
+/* Top 노드와 일반 노드 구분을 위한 추가 스타일 */
+.node:not(.top-node) circle {
+    opacity: 0.8;
+}
+
+.top-node circle {
+    opacity: 1;
+}
+
+/* 호버 시 Top 노드 특별 효과 */
+.top-node:hover circle {
+    stroke-width: 4px !important;
+    filter: drop-shadow(0 0 15px rgba(255,215,0,1));
+}
+
+.top-node:hover .node-label {
+    font-size: 12px;
+    fill: #FFFF00;
+}
+
+/* Top 노드 연결 링크 강조 */
+.links line[data-top-node="true"] {
     stroke-width: 3px !important;
-    filter: drop-shadow(0 0 5px rgba(255,255,255,0.8));
+    stroke-opacity: 1 !important;
+}
+
+/* 반응형 디자인 */
+@media (max-width: 1200px) {
+    .top-node .node-label {
+        font-size: 10px;
+    }
+    
+    .node-label {
+        font-size: 9px;
+    }
+}
+
+@media (max-width: 768px) {
+    .top-node .node-label {
+        font-size: 9px;
+    }
+    
+    .node-label {
+        font-size: 8px;
+    }
+    
+    .top-node-background {
+        animation-duration: 4s; /* 모바일에서는 더 느린 애니메이션 */
+    }
 }

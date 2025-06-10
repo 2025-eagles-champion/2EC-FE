@@ -14,11 +14,17 @@ const NetworkGraph = ({
     addressData,
     onNodeClick,
     selectedNode,
+    topNodesData = [], // 추가: Top-N 노드 데이터
 }) => {
     const svgRef = useRef(null);
     const [graphData, setGraphData] = useState(null);
     const [viewportWidth, setViewportWidth] = useState(window.innerWidth * 0.7);
     const [viewportHeight, setViewportHeight] = useState(window.innerHeight);
+
+    // Top-N 노드 주소 집합을 생성
+    const topNodeAddresses = useMemo(() => {
+        return new Set(topNodesData.map(node => node.address || node.id));
+    }, [topNodesData]);
 
     // 트랜잭션 데이터를 그래프 데이터로 변환하는 로직 최적화
     const transformedGraphData = useMemo(() => {
@@ -64,6 +70,8 @@ const NetworkGraph = ({
         // 노드 추가
         sortedAddressData.forEach((addr) => {
             if (addr && addr.address && !nodes.has(addr.address)) {
+                const isTopNode = topNodeAddresses.has(addr.address);
+                
                 nodes.set(addr.address, {
                     id: addr.address,
                     name: shortenAddress(addr.address, 5, 4),
@@ -75,9 +83,9 @@ const NetworkGraph = ({
                     recv_tx_amount: addr.recv_tx_amount || 0,
                     pagerank: addr.pagerank || addr.final_score || 0.1,
                     tier: addr.tier || "bronze",
-                    isTopNode: sortedAddressData
-                        .slice(0, 10)
-                        .some((top) => top.address === addr.address),
+                    isTopNode: isTopNode, // Top-N 노드 여부 추가
+                    topNodeRank: isTopNode ? topNodesData.findIndex(top => 
+                        (top.address || top.id) === addr.address) + 1 : null, // 순위 추가
                 });
             }
         });
@@ -96,6 +104,8 @@ const NetworkGraph = ({
             // 아직 없는 노드라면 추가
             if (!nodes.has(tx.fromAddress)) {
                 const addrInfo = addressMap.get(tx.fromAddress) || {};
+                const isTopNode = topNodeAddresses.has(tx.fromAddress);
+                
                 nodes.set(tx.fromAddress, {
                     id: tx.fromAddress,
                     name: shortenAddress(tx.fromAddress, 5, 4),
@@ -106,12 +116,16 @@ const NetworkGraph = ({
                     recv_tx_amount: addrInfo.recv_tx_amount || 0,
                     pagerank: addrInfo.pagerank || 0.1,
                     tier: addrInfo.tier || "bronze",
-                    isTopNode: false,
+                    isTopNode: isTopNode,
+                    topNodeRank: isTopNode ? topNodesData.findIndex(top => 
+                        (top.address || top.id) === tx.fromAddress) + 1 : null,
                 });
             }
 
             if (!nodes.has(tx.toAddress)) {
                 const addrInfo = addressMap.get(tx.toAddress) || {};
+                const isTopNode = topNodeAddresses.has(tx.toAddress);
+                
                 nodes.set(tx.toAddress, {
                     id: tx.toAddress,
                     name: shortenAddress(tx.toAddress, 5, 4),
@@ -122,7 +136,9 @@ const NetworkGraph = ({
                     recv_tx_amount: addrInfo.recv_tx_amount || 0,
                     pagerank: addrInfo.pagerank || 0.1,
                     tier: addrInfo.tier || "bronze",
-                    isTopNode: false,
+                    isTopNode: isTopNode,
+                    topNodeRank: isTopNode ? topNodesData.findIndex(top => 
+                        (top.address || top.id) === tx.toAddress) + 1 : null,
                 });
             }
 
@@ -157,7 +173,7 @@ const NetworkGraph = ({
             nodes: Array.from(nodes.values()),
             links: Array.from(links.values()),
         };
-    }, [transactions, addressData]);
+    }, [transactions, addressData, topNodeAddresses, topNodesData]);
 
     // 뷰포트 크기 변경 감지
     useEffect(() => {
@@ -205,6 +221,23 @@ const NetworkGraph = ({
         // 노드와 링크를 포함할 컨테이너 그룹
         const g = svg.append("g");
 
+        // Top-N 노드를 위한 배경 원 추가 (가장 먼저 그려서 뒤에 배치)
+        const topNodeBackgrounds = g
+            .append("g")
+            .attr("class", "top-node-backgrounds")
+            .selectAll("circle")
+            .data(graphData.nodes.filter(d => d.isTopNode))
+            .enter()
+            .append("circle")
+            .attr("class", "top-node-background")
+            .attr("r", d => getNodeSize(d) + 15) // 노드보다 훨씬 큰 배경
+            .attr("fill", "none")
+            .attr("stroke", d => getChainColor(d.chain))
+            .attr("stroke-width", 3)
+            .attr("stroke-opacity", 0.3)
+            .attr("stroke-dasharray", "8,4")
+            .style("filter", "drop-shadow(0 0 8px rgba(255,255,255,0.8))");
+
         // 시뮬레이션 설정
         const simulation = d3
             .forceSimulation(graphData.nodes)
@@ -229,23 +262,23 @@ const NetworkGraph = ({
                                   );
 
                         if (source.isTopNode && target.isTopNode) {
-                            return 200; // Top 노드끼리는 더 멀리
+                            return 300; // Top 노드끼리는 더 멀리
                         } else if (source.isTopNode || target.isTopNode) {
-                            return 150; // Top 노드와 일반 노드
+                            return 200; // Top 노드와 일반 노드
                         }
-                        return 100; // 일반 노드끼리
+                        return 120; // 일반 노드끼리
                     })
             )
             .force(
                 "charge",
-                d3.forceManyBody().strength((d) => (d.isTopNode ? -800 : -400))
+                d3.forceManyBody().strength((d) => d.isTopNode ? -1200 : -500)
             )
             .force("center", d3.forceCenter(width / 2, height / 2))
             .force("x", d3.forceX(width / 2).strength(0.1))
             .force("y", d3.forceY(height / 2).strength(0.1))
             .force(
                 "collision",
-                d3.forceCollide().radius((d) => getNodeSize(d) * 1.5)
+                d3.forceCollide().radius((d) => getNodeSize(d) * 2)
             );
 
         // 링크 생성
@@ -256,7 +289,7 @@ const NetworkGraph = ({
             .data(graphData.links)
             .enter()
             .append("line")
-            .attr("stroke-width", (d) => Math.log(d.value + 1) * 0.5)
+            .attr("stroke-width", (d) => Math.log(d.value + 1) * 0.8)
             .attr("stroke", (d) => {
                 // 객체 참조 또는 문자열 ID일 수 있으므로 안전하게 처리
                 const sourceId =
@@ -271,9 +304,33 @@ const NetworkGraph = ({
                     (node) => node.id === targetId
                 );
 
-                return getLinkColor(source, target);
+                // Top 노드와 연결된 링크는 더 강조
+                if (source?.isTopNode || target?.isTopNode) {
+                    return getLinkColor(source, target, 0.9);
+                }
+
+                return getLinkColor(source, target, 0.6);
             })
-            .attr("stroke-opacity", 0.6);
+            .attr("stroke-opacity", (d) => {
+                const sourceId =
+                    typeof d.source === "object" ? d.source.id : d.source;
+                const targetId =
+                    typeof d.target === "object" ? d.target.id : d.target;
+
+                const source = graphData.nodes.find(
+                    (node) => node.id === sourceId
+                );
+                const target = graphData.nodes.find(
+                    (node) => node.id === targetId
+                );
+
+                // Top 노드와 연결된 링크는 더 강조
+                if (source?.isTopNode || target?.isTopNode) {
+                    return 0.9;
+                }
+
+                return 0.6;
+            });
 
         // 노드 생성
         const nodeGroup = g
@@ -296,35 +353,58 @@ const NetworkGraph = ({
                 onNodeClick(d);
             });
 
+        // Top 노드의 경우 추가 강조 효과
+        nodeGroup
+            .filter(d => d.isTopNode)
+            .append("circle")
+            .attr("r", (d) => getNodeSize(d) + 8)
+            .attr("fill", "none")
+            .attr("stroke", "#FFD700") // 골드 색상
+            .attr("stroke-width", 2)
+            .attr("stroke-opacity", 0.8)
+            .style("filter", "drop-shadow(0 0 6px rgba(255,215,0,0.6))")
+            .style("animation", "pulse 2s infinite");
+
         // 노드 원형 생성
         nodeGroup
             .append("circle")
-            .attr("r", (d) => getNodeSize(d))
+            .attr("r", (d) => getNodeSize(d) + (d.isTopNode ? 3 : 0)) // Top 노드는 더 크게
             .attr("fill", (d) => getChainColor(d.chain))
-            .attr("stroke", (d) =>
-                d.isTopNode ? "#fff" : "rgba(255,255,255,0.5)"
-            )
-            .attr("stroke-width", (d) => (d.isTopNode ? 2 : 1.5));
+            .attr("stroke", (d) => {
+                if (d.isTopNode) return "#FFD700"; // Top 노드는 골드 테두리
+                return "rgba(255,255,255,0.8)";
+            })
+            .attr("stroke-width", (d) => d.isTopNode ? 3 : 1.5)
+            .style("filter", (d) => 
+                d.isTopNode ? "drop-shadow(0 0 5px rgba(255,215,0,0.5))" : "none"
+            );
 
-        // 중요도 있는 노드는 테두리 추가
+        // Top 노드 순위 표시
         nodeGroup
-            .filter((d) => d.isTopNode)
-            .append("circle")
-            .attr("r", (d) => getNodeSize(d) + 4)
-            .attr("fill", "none")
-            .attr("stroke", (d) => getChainColor(d.chain))
-            .attr("stroke-width", 1)
-            .attr("stroke-opacity", 0.5)
-            .attr("stroke-dasharray", "3,2");
+            .filter(d => d.isTopNode)
+            .append("text")
+            .attr("dy", "0.35em")
+            .attr("text-anchor", "middle")
+            .attr("font-size", "10px")
+            .attr("font-weight", "bold")
+            .attr("fill", "#fff")
+            .attr("stroke", "#000")
+            .attr("stroke-width", 0.5)
+            .text(d => d.topNodeRank);
 
         // 노드 라벨 추가
         nodeGroup
             .append("text")
-            .attr("dy", (d) => getNodeSize(d) + 15)
+            .attr("dy", (d) => getNodeSize(d) + (d.isTopNode ? 20 : 15))
             .attr("text-anchor", "middle")
             .attr("class", "node-label")
             .text((d) => d.name || shortenAddress(d.id, 5, 4))
-            .attr("opacity", (d) => (d.isTopNode ? 1 : 0.7));
+            .attr("opacity", (d) => (d.isTopNode ? 1 : 0.7))
+            .attr("font-weight", (d) => d.isTopNode ? "bold" : "normal")
+            .attr("font-size", (d) => d.isTopNode ? "11px" : "10px")
+            .style("filter", (d) => 
+                d.isTopNode ? "drop-shadow(0 0 3px rgba(0,0,0,0.8))" : "none"
+            );
 
         // 선택된 노드 강조 표시
         if (selectedNode) {
@@ -348,7 +428,7 @@ const NetworkGraph = ({
             .append("title")
             .text(
                 (d) =>
-                    `${d.id} (${d.chain})\n거래 횟수: ${
+                    `${d.id} (${d.chain})${d.isTopNode ? ` - Top ${d.topNodeRank}` : ""}\n거래 횟수: ${
                         d.sent_tx_count + d.recv_tx_count
                     }\n거래량: ${(d.sent_tx_amount + d.recv_tx_amount).toFixed(
                         2
@@ -363,6 +443,9 @@ const NetworkGraph = ({
                 .attr("y2", (d) => d.target.y);
 
             nodeGroup.attr("transform", (d) => `translate(${d.x},${d.y})`);
+            
+            // Top 노드 배경도 함께 이동
+            topNodeBackgrounds.attr("transform", (d) => `translate(${d.x},${d.y})`);
         });
 
         // 드래그 함수

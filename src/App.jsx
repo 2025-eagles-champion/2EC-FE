@@ -30,8 +30,7 @@ function App() {
     const [topNodesData, setTopNodesData] = useState([]);
 
     // API URL 설정
-    const API_URL = "http://localhost:8000";
-
+    const API_URL = "http://172.22.220.142:8000"
     // 노드 데이터 로드 함수 - 외부 활동 가중치 추가
     const loadData = async (filters = {}) => {
         console.log("loadData 함수 호출됨", { 
@@ -222,6 +221,7 @@ function App() {
                         addressData={addressData}
                         onNodeClick={handleNodeSelect}
                         selectedNode={selectedNode}
+                        topNodesData={topNodesData} // Top-N 노드 데이터 전달
                     />
                 </div>
                 <div className="navigation-container">
